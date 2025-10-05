@@ -1,0 +1,46 @@
+using System;
+using System.Drawing;
+using System.Drawing.Text;
+using System.Drawing.Drawing2D;
+
+namespace yf_hdr
+{
+    internal class Program
+    {
+        static void Main()
+        {
+            string inputPath = "yf_hdr.png";
+            string outputPath = "yf_hdr_logo.png";
+            string logoText = "YF_HDR";
+
+            if (!System.IO.File.Exists(inputPath))
+            {
+                Console.WriteLine("Source image not found.");
+                return;
+            }
+
+            using (Bitmap bmp = (Bitmap)Image.FromFile(inputPath))
+            using (Graphics g = Graphics.FromImage(bmp))
+            {
+                g.SmoothingMode = SmoothingMode.AntiAlias;
+                g.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
+
+                using Font font = new("Segoe UI", 40, FontStyle.Bold, GraphicsUnit.Pixel);
+                var textSize = g.MeasureString(logoText, font);
+                int margin = 20;
+                float x = bmp.Width - textSize.Width - margin;
+                float y = bmp.Height - textSize.Height - margin;
+
+                using SolidBrush shadow = new(Color.FromArgb(120, 0, 0, 0));
+                g.DrawString(logoText, font, shadow, x + 3, y + 3);
+
+                using SolidBrush brush = new(Color.White);
+                g.DrawString(logoText, font, brush, x, y);
+
+                bmp.Save(outputPath, System.Drawing.Imaging.ImageFormat.Png);
+            }
+
+            Console.WriteLine($"Saved: {outputPath}");
+        }
+    }
+}
