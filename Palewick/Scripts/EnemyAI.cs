@@ -26,8 +26,8 @@ public class EnemyAI : MonoBehaviourPunCallbacks, IPunObservable
     [Header("Timing")]
     public float destinationUpdateInterval = 0.1f;
     public float targetScanInterval = 0.5f;
-    public float navMeshSampleDistance = 20f;
-    public float stuckCheckTime = 0.4f;
+    public float chaseSampleDistance = 20f;
+    public float stuckTime = 0.4f;
     [Header("Debug")]
     public string currentStateDebug;
     public float debugDistance;
@@ -231,7 +231,7 @@ public class EnemyAI : MonoBehaviourPunCallbacks, IPunObservable
         if (distance > ChaseStopDistance() + 0.3f && !agent.pathPending && v.magnitude < 0.3f)
         {
             stuckTimer += Time.deltaTime;
-            if (stuckTimer >= stuckCheckTime)
+            if (stuckTimer >= stuckTime)
             {
                 stuckTimer = 0f;
                 Vector3 point;
@@ -336,7 +336,7 @@ public class EnemyAI : MonoBehaviourPunCallbacks, IPunObservable
     private bool TryGetReachablePoint(Vector3 position, out Vector3 point)
     {
         point = position;
-        if (!NavMesh.SamplePosition(position, out NavMeshHit hit, navMeshSampleDistance, NavMesh.AllAreas)) return false;
+        if (!NavMesh.SamplePosition(position, out NavMeshHit hit, chaseSampleDistance, NavMesh.AllAreas)) return false;
         if (FlatDistance(hit.position, position) > 1f) return false;
         point = hit.position;
         return true;
@@ -349,7 +349,7 @@ public class EnemyAI : MonoBehaviourPunCallbacks, IPunObservable
             point = hit.position;
             return true;
         }
-        if (NavMesh.SamplePosition(position, out hit, navMeshSampleDistance, NavMesh.AllAreas))
+        if (NavMesh.SamplePosition(position, out hit, chaseSampleDistance, NavMesh.AllAreas))
         {
             point = hit.position;
             return true;
