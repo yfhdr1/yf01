@@ -53,3 +53,13 @@ Unity 6000.6.1f1 | Android | Photon PUN 2 | IL2CPP | ARM64 | LZ4
 3. تصليح PlayerHealth (الفقرة 2).
 4. تصليح SetupMonsterAnimatorButton وتحديد مساره.
 5. Runtime/Models مال PostProcessing (15 ملف) — مؤجل.
+
+## 5. فحص Monster_AI (26/9/2026 - 7:28 PM)
+- Tag: Enemy | Layer: Default | Static مطفأ | Position 532.79, 17.5, 187.15 | Rotation Y 307.46
+- PhotonView: ViewID 133، Fixed، Unreliable On Change، Observed = EnemyAI ✔
+- NavMeshAgent: Humanoid، Speed 1.8، Angular 360، Accel 12، Stopping 1.6، Radius 0.5، Height 2.2، High Quality، Area Walkable
+- CapsuleCollider: Is Trigger ✔، Center Y 1، Radius 0.5، Height 3
+- ZombieSoundController موجود
+- Animator: Controller = MonsterAnimator، Avatar = None ❌ (سبب توقف الأنيميشن)، Root Motion مطفأ، Culling Always Animate، Clip Count 4 (Humanoid)
+- EnemyAI Inspector: Patrol 1.8، Chase 4.2، Stop 1.6، Attack Range 1.15، Damage 10، Cooldown 2.2، Patrol Radius 6
+- أطفال: Warzombie F Pedroso (mixamorig:Hips، WorldWar_zombie) + PatrolPoints (ما يستخدمه الكود الجديد)
