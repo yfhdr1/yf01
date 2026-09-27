@@ -15,9 +15,7 @@ public class PauseMenuPUBG : MonoBehaviour
     private const float CloseTime = 0.18f;
     private static readonly string[] LevelKeys = { "low", "medium", "high", "ultra" };
     private static readonly string[] LevelNames = { "SMOOTH", "BALANCED", "HD", "ULTRA" };
-    private static readonly float[] RenderScales = { 0.7f, 0.85f, 1f, 1f };
-    private static int nativeWidth;
-    private static int nativeHeight;
+    private static readonly int[] FrameRates = { 30, 45, 90, 144 };
     private GameObject pausePanel;
     private CanvasGroup panelGroup;
     private RectTransform boxRect;
@@ -44,11 +42,6 @@ public class PauseMenuPUBG : MonoBehaviour
     private bool leaving;
     private void Start()
     {
-        if (nativeWidth == 0)
-        {
-            nativeWidth = Screen.width;
-            nativeHeight = Screen.height;
-        }
         baseAmbient = RenderSettings.ambientLight;
         pausePanel = FindChild(transform, "PausePanel");
         if (pausePanel != null)
@@ -377,21 +370,14 @@ public class PauseMenuPUBG : MonoBehaviour
             qualityIndex = Mathf.Clamp(slot, 0, Mathf.Max(0, names.Length - 1));
         }
         QualitySettings.SetQualityLevel(qualityIndex, true);
-        Application.targetFrameRate = 60;
-        ApplyRenderScale(RenderScales[slot]);
-    }
-    private void ApplyRenderScale(float scale)
-    {
-        if (Application.isEditor || nativeWidth <= 0 || nativeHeight <= 0)
+        QualitySettings.vSyncCount = 0;
+        int fps = FrameRates[slot];
+        if (slot == 3)
         {
-            return;
+            int hz = Mathf.RoundToInt((float)Screen.currentResolution.refreshRateRatio.value);
+            fps = Mathf.Clamp(hz, 120, 144);
         }
-        int w = Mathf.Max(320, Mathf.RoundToInt(nativeWidth * scale));
-        int h = Mathf.Max(240, Mathf.RoundToInt(nativeHeight * scale));
-        if (Screen.width != w || Screen.height != h)
-        {
-            Screen.SetResolution(w, h, true);
-        }
+        Application.targetFrameRate = fps;
     }
     private void HighlightGfx(string level)
     {
