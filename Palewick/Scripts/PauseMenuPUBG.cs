@@ -34,6 +34,8 @@ public class PauseMenuPUBG : MonoBehaviour
     private readonly Button[] fpsButtons = new Button[6];
     private GameObject fpsLabel;
     private bool gfxLayoutDone;
+    private int frameCount;
+    private float frameTime;
     private Slider sensitivitySlider;
     private Slider volumeSlider;
     private Slider brightnessSlider;
@@ -56,7 +58,7 @@ public class PauseMenuPUBG : MonoBehaviour
     {
         AudioListener.volume = PlayerPrefs.GetFloat(AudioKey, 1f);
         ApplyGraphicsLevel(PlayerPrefs.GetString(GraphicsKey, LevelKeys[1]));
-        ApplyFps(PlayerPrefs.GetInt(FpsKey, 60));
+        ApplyFps(SupportedFps(PlayerPrefs.GetInt(FpsKey, 60)));
     }
     private void Start()
     {
@@ -147,7 +149,7 @@ public class PauseMenuPUBG : MonoBehaviour
         string level = PlayerPrefs.GetString(GraphicsKey, LevelKeys[1]);
         ApplyGraphicsLevel(level);
         HighlightGfx(level);
-        int fps = PlayerPrefs.GetInt(FpsKey, 60);
+        int fps = SupportedFps(PlayerPrefs.GetInt(FpsKey, 60));
         ApplyFps(fps);
         HighlightFps(fps);
     }
@@ -278,6 +280,18 @@ public class PauseMenuPUBG : MonoBehaviour
         {
             fxTimer = 0.5f;
             UpdatePostFX();
+        }
+        frameCount++;
+        frameTime += Time.unscaledDeltaTime;
+        if (frameTime >= 0.5f)
+        {
+            int measured = Mathf.RoundToInt(frameCount / frameTime);
+            frameCount = 0;
+            frameTime = 0f;
+            if (fpsLabel != null && fpsLabel.activeInHierarchy)
+            {
+                SetLabel(fpsLabel, "FPS  " + measured);
+            }
         }
         if (Input.GetKeyDown(KeyCode.Escape))
         {
@@ -529,15 +543,92 @@ public class PauseMenuPUBG : MonoBehaviour
             qualityIndex = Mathf.Clamp(slot, 0, Mathf.Max(0, names.Length - 1));
         }
         QualitySettings.SetQualityLevel(qualityIndex, true);
-        QualitySettings.vSyncCount = 0;
+    }
+    private static List<Resolution> RefreshModes()
+    {
+        List<Resolution> modes = new List<Resolution>();
+        Resolution[] all = Screen.resolutions;
+        for (int i = 0; i < all.Length; i++)
+        {
+            modes.Add(all[i]);
+        }
+        modes.Add(Screen.currentResolution);
+        return modes;
+    }
+    private static bool FindRefreshFor(int fps, out Resolution best)
+    {
+        best = Screen.currentResolution;
+        bool found = false;
+        double bestHz = double.MaxValue;
+        List<Resolution> modes = RefreshModes();
+        for (int i = 0; i < modes.Count; i++)
+        {
+            double hz = modes[i].refreshRateRatio.value;
+            if (hz < fps - 1.0)
+            {
+                continue;
+            }
+            double ratio = hz / fps;
+            if (System.Math.Abs(ratio - System.Math.Round(ratio)) > 0.03)
+            {
+                continue;
+            }
+            if (hz < bestHz)
+            {
+                bestHz = hz;
+                best = modes[i];
+                found = true;
+            }
+        }
+        return found;
+    }
+    private static bool IsFpsSupported(int fps)
+    {
+        if (Application.isEditor)
+        {
+            return true;
+        }
+        Resolution mode;
+        return FindRefreshFor(fps, out mode);
+    }
+    private static int SupportedFps(int wanted)
+    {
+        if (IsFpsSupported(wanted))
+        {
+            return wanted;
+        }
+        for (int i = FpsOptions.Length - 1; i >= 0; i--)
+        {
+            if (FpsOptions[i] < wanted && IsFpsSupported(FpsOptions[i]))
+            {
+                return FpsOptions[i];
+            }
+        }
+        return 30;
     }
     private static void ApplyFps(int fps)
     {
         QualitySettings.vSyncCount = 0;
+        if (!Application.isEditor)
+        {
+            Resolution mode;
+            if (FindRefreshFor(fps, out mode))
+            {
+                double current = Screen.currentResolution.refreshRateRatio.value;
+                if (System.Math.Abs(current - mode.refreshRateRatio.value) > 0.5)
+                {
+                    Screen.SetResolution(Screen.width, Screen.height, FullScreenMode.FullScreenWindow, mode.refreshRateRatio);
+                }
+            }
+        }
         Application.targetFrameRate = fps;
     }
     private void SetFps(int fps)
     {
+        if (!IsFpsSupported(fps))
+        {
+            return;
+        }
         PlayerPrefs.SetInt(FpsKey, fps);
         PlayerPrefs.Save();
         ApplyFps(fps);
@@ -547,7 +638,17 @@ public class PauseMenuPUBG : MonoBehaviour
     {
         for (int i = 0; i < fpsButtons.Length; i++)
         {
+            if (fpsButtons[i] == null)
+            {
+                continue;
+            }
+            bool supported = IsFpsSupported(FpsOptions[i]);
+            fpsButtons[i].interactable = supported;
             SetButtonState(fpsButtons[i], FpsOptions[i] == fps);
+            if (!supported && fpsButtons[i].image != null)
+            {
+                fpsButtons[i].image.color = new Color(gfxOff.r, gfxOff.g, gfxOff.b, 0.3f);
+            }
         }
     }
     private void SetButtonState(Button button, bool on)
