@@ -5,6 +5,7 @@ using UnityEngine.Events;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using UnityEngine.Rendering.PostProcessing;
+using TMPro;
 using Photon.Pun;
 public class PauseMenuPUBG : MonoBehaviour
 {
@@ -12,11 +13,12 @@ public class PauseMenuPUBG : MonoBehaviour
     private const string SensKey = "TouchSensitivity";
     private const string BrightKey = "pw_brightness2";
     private const string GraphicsKey = "pw_graphics";
+    private const string FpsKey = "pw_fps";
     private const float OpenTime = 0.25f;
     private const float CloseTime = 0.18f;
-    private static readonly string[] LevelKeys = { "low", "medium", "high", "ultra" };
-    private static readonly string[] LevelNames = { "SMOOTH", "BALANCED", "HD", "ULTRA" };
-    private static readonly int[] FrameRates = { 30, 45, 90, 144 };
+    private static readonly string[] LevelKeys = { "low", "medium", "high", "ultra", "ultimate" };
+    private static readonly string[] LevelNames = { "SMOOTH", "BALANCED", "HD", "ULTRA", "ULTIMATE" };
+    private static readonly int[] FpsOptions = { 30, 45, 60, 90, 120, 144 };
     private static int currentSlot = 1;
     private PostProcessLayer ppLayer;
     private PostProcessVolume ppVolume;
@@ -28,7 +30,8 @@ public class PauseMenuPUBG : MonoBehaviour
     private Coroutine animRoutine;
     private readonly GameObject[] pages = new GameObject[4];
     private readonly Button[] tabs = new Button[4];
-    private readonly Button[] gfxButtons = new Button[4];
+    private readonly Button[] gfxButtons = new Button[5];
+    private readonly Button[] fpsButtons = new Button[6];
     private Slider sensitivitySlider;
     private Slider volumeSlider;
     private Slider brightnessSlider;
@@ -51,6 +54,7 @@ public class PauseMenuPUBG : MonoBehaviour
     {
         AudioListener.volume = PlayerPrefs.GetFloat(AudioKey, 1f);
         ApplyGraphicsLevel(PlayerPrefs.GetString(GraphicsKey, LevelKeys[1]));
+        ApplyFps(PlayerPrefs.GetInt(FpsKey, 60));
     }
     private void Start()
     {
@@ -82,6 +86,7 @@ public class PauseMenuPUBG : MonoBehaviour
         gfxButtons[1] = FindButton("GfxMedium");
         gfxButtons[2] = FindButton("GfxHigh");
         gfxButtons[3] = FindButton("GfxUltra");
+        BuildExtraGraphicsUI();
         sensitivitySlider = FindSlider("SensitivitySlider");
         volumeSlider = FindSlider("VolumeSlider");
         brightnessSlider = FindSlider("BrightnessSlider");
@@ -103,6 +108,12 @@ public class PauseMenuPUBG : MonoBehaviour
         BindButton(gfxButtons[1], () => SetGraphics(LevelKeys[1]));
         BindButton(gfxButtons[2], () => SetGraphics(LevelKeys[2]));
         BindButton(gfxButtons[3], () => SetGraphics(LevelKeys[3]));
+        BindButton(gfxButtons[4], () => SetGraphics(LevelKeys[4]));
+        for (int i = 0; i < fpsButtons.Length; i++)
+        {
+            int fpsValue = FpsOptions[i];
+            BindButton(fpsButtons[i], () => SetFps(fpsValue));
+        }
         BindButton(FindButton("ExitButton"), ExitToLobby);
         BindButton(FindButton("ResumeButton"), () => SetPaused(false));
         float sens = PlayerPrefs.GetFloat(SensKey, 0.15f);
@@ -134,6 +145,94 @@ public class PauseMenuPUBG : MonoBehaviour
         string level = PlayerPrefs.GetString(GraphicsKey, LevelKeys[1]);
         ApplyGraphicsLevel(level);
         HighlightGfx(level);
+        int fps = PlayerPrefs.GetInt(FpsKey, 60);
+        ApplyFps(fps);
+        HighlightFps(fps);
+    }
+    private void BuildExtraGraphicsUI()
+    {
+        if (gfxButtons[0] == null || gfxButtons[1] == null || gfxButtons[3] == null)
+        {
+            return;
+        }
+        RectTransform r0 = gfxButtons[0].GetComponent<RectTransform>();
+        RectTransform r1 = gfxButtons[1].GetComponent<RectTransform>();
+        RectTransform r3 = gfxButtons[3].GetComponent<RectTransform>();
+        Transform page = r0.parent;
+        LayoutGroup group = page.GetComponent<LayoutGroup>();
+        if (group != null)
+        {
+            group.enabled = false;
+        }
+        float w = r0.rect.width;
+        float h = r0.rect.height;
+        float gap = Mathf.Max(0f, (r1.anchoredPosition.x - r0.anchoredPosition.x) - w);
+        float left = r0.anchoredPosition.x - w * r0.pivot.x;
+        float right = r3.anchoredPosition.x + w * (1f - r3.pivot.x);
+        float span = right - left;
+        float rowY = r0.anchoredPosition.y;
+        float fpsY = rowY - h * 1.6f;
+        GameObject ultimate = FindChild(page, "GfxUltimate");
+        if (ultimate == null)
+        {
+            ultimate = Instantiate(gfxButtons[3].gameObject, page);
+            ultimate.name = "GfxUltimate";
+        }
+        SetLabel(ultimate, "ULTIMATE");
+        gfxButtons[4] = ultimate.GetComponent<Button>();
+        LayoutRow(gfxButtons, left, span, gap, rowY);
+        GameObject label = FindChild(page, "Label");
+        if (label != null && FindChild(page, "FpsLabel") == null)
+        {
+            GameObject fpsLabel = Instantiate(label, page);
+            fpsLabel.name = "FpsLabel";
+            RectTransform lr = fpsLabel.GetComponent<RectTransform>();
+            RectTransform orig = label.GetComponent<RectTransform>();
+            lr.anchoredPosition = new Vector2(orig.anchoredPosition.x, orig.anchoredPosition.y + (fpsY - rowY));
+            SetLabel(fpsLabel, "FPS");
+        }
+        for (int i = 0; i < fpsButtons.Length; i++)
+        {
+            string fpsName = "Fps" + FpsOptions[i];
+            GameObject go = FindChild(page, fpsName);
+            if (go == null)
+            {
+                go = Instantiate(gfxButtons[0].gameObject, page);
+                go.name = fpsName;
+            }
+            SetLabel(go, FpsOptions[i].ToString());
+            fpsButtons[i] = go.GetComponent<Button>();
+        }
+        LayoutRow(fpsButtons, left, span, gap, fpsY);
+    }
+    private static void LayoutRow(Button[] row, float left, float span, float gap, float y)
+    {
+        int count = row.Length;
+        float cellW = (span - gap * (count - 1)) / count;
+        for (int i = 0; i < count; i++)
+        {
+            if (row[i] == null)
+            {
+                continue;
+            }
+            RectTransform rt = row[i].GetComponent<RectTransform>();
+            rt.sizeDelta = new Vector2(rt.sizeDelta.x + (cellW - rt.rect.width), rt.sizeDelta.y);
+            float x = left + i * (cellW + gap) + cellW * rt.pivot.x;
+            rt.anchoredPosition = new Vector2(x, y);
+        }
+    }
+    private static void SetLabel(GameObject go, string value)
+    {
+        Text t = go.GetComponentInChildren<Text>(true);
+        if (t != null)
+        {
+            t.text = value;
+        }
+        TMP_Text tm = go.GetComponentInChildren<TMP_Text>(true);
+        if (tm != null)
+        {
+            tm.text = value;
+        }
     }
     private void Update()
     {
@@ -390,13 +489,41 @@ public class PauseMenuPUBG : MonoBehaviour
         }
         QualitySettings.SetQualityLevel(qualityIndex, true);
         QualitySettings.vSyncCount = 0;
-        int fps = FrameRates[slot];
-        if (slot == 3)
-        {
-            int hz = Mathf.RoundToInt((float)Screen.currentResolution.refreshRateRatio.value);
-            fps = Mathf.Clamp(hz, 120, 144);
-        }
+    }
+    private static void ApplyFps(int fps)
+    {
+        QualitySettings.vSyncCount = 0;
         Application.targetFrameRate = fps;
+    }
+    private void SetFps(int fps)
+    {
+        PlayerPrefs.SetInt(FpsKey, fps);
+        PlayerPrefs.Save();
+        ApplyFps(fps);
+        HighlightFps(fps);
+    }
+    private void HighlightFps(int fps)
+    {
+        for (int i = 0; i < fpsButtons.Length; i++)
+        {
+            SetButtonState(fpsButtons[i], FpsOptions[i] == fps);
+        }
+    }
+    private void SetButtonState(Button button, bool on)
+    {
+        if (button == null)
+        {
+            return;
+        }
+        if (button.image != null)
+        {
+            button.image.color = on ? gfxOn : gfxOff;
+        }
+        Text t = button.GetComponentInChildren<Text>();
+        if (t != null)
+        {
+            t.color = on ? textOn : textOff;
+        }
     }
     private void UpdatePostFX()
     {
@@ -430,6 +557,11 @@ public class PauseMenuPUBG : MonoBehaviour
         SetEffect<Bloom>(profile, currentSlot >= 2);
         SetEffect<Grain>(profile, currentSlot >= 2);
         SetEffect<AmbientOcclusion>(profile, currentSlot >= 3);
+        AmbientOcclusion ao;
+        if (profile.TryGetSettings(out ao))
+        {
+            ao.quality.value = currentSlot >= 4 ? AmbientOcclusionQuality.High : AmbientOcclusionQuality.Medium;
+        }
         Bloom bloom;
         if (profile.TryGetSettings(out bloom))
         {
@@ -446,21 +578,9 @@ public class PauseMenuPUBG : MonoBehaviour
     }
     private void HighlightGfx(string level)
     {
-        for (int i = 0; i < 4; i++)
+        for (int i = 0; i < gfxButtons.Length; i++)
         {
-            if (gfxButtons[i] != null)
-            {
-                bool on = LevelKeys[i] == level;
-                if (gfxButtons[i].image != null)
-                {
-                    gfxButtons[i].image.color = on ? gfxOn : gfxOff;
-                }
-                Text t = gfxButtons[i].GetComponentInChildren<Text>();
-                if (t != null)
-                {
-                    t.color = on ? textOn : textOff;
-                }
-            }
+            SetButtonState(gfxButtons[i], LevelKeys[i] == level);
         }
     }
     private void SetSensitivity(float value)
