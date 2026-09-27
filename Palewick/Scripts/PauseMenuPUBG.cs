@@ -158,6 +158,11 @@ public class PauseMenuPUBG : MonoBehaviour
             return;
         }
         Transform page = gfxButtons[0].transform.parent;
+        LayoutGroup group = page.GetComponent<LayoutGroup>();
+        if (group != null)
+        {
+            group.enabled = false;
+        }
         GameObject ultimate = FindChild(page, "GfxUltimate");
         if (ultimate == null)
         {
@@ -211,11 +216,6 @@ public class PauseMenuPUBG : MonoBehaviour
             return;
         }
         gfxLayoutDone = true;
-        LayoutGroup group = page.GetComponent<LayoutGroup>();
-        if (group != null)
-        {
-            group.enabled = false;
-        }
         float w = b0.width;
         float h = b0.height;
         float gap = Mathf.Max(4f, b1.xMin - b0.xMax);
