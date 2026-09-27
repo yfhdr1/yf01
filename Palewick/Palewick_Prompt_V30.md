@@ -227,3 +227,9 @@ PlayerHealth الجديد وEnemyAI (IsDead) انلصقوا بالمشروع، �
 مشكلة جهاز: خطأ D3D11 swapchain device reset/removed (GPU Timeout على Intel) أثناء Play. الحل المطبق: TdrDelay=10 وTdrDdiDelay=20 بالريجستري + Restart. إذا رجع: تحديث تعريف Intel، وسد Brave أثناء Play.
 المعلّق التالي: ربط Avatar على Monster_AI ثم تجربة Play.
 تحديث EnemyAI (27/9): Avatar انربط والأنيميشن يشتغل. إصلاح الوقفات: TryGetChasePoint (يلحق أقرب نقطة NavMesh حتى لو اللاعب طالع منها لحد offMeshTolerance=2)، loseTargetDelay=3 ثواني قبل ما يترك، CheckStuck كل 0.75 ثانية يعيد المسار، SetDestination بس إذا الهدف تحرك أكثر من 0.3م، وحقل currentStateDebug يبين الحالة بالـ Inspector.
+
+## Status 2026-09-27 (EnemyAI final)
+- EnemyAI: chase never stops; returns to spawn only when player > returnDistance (15 m). Fields renamed: chaseSampleDistance=20, stuckTime=0.4, returnDistance=15. Debug fields: currentStateDebug, debugDistance, debugVelocity, debugPath.
+- Serialization now sends position, rotation, animSpeed, velocity (all clients need same build).
+- Monster_AI PhotonView: ViewID 133, Ownership Fixed, Unreliable On Change, Observed = EnemyAI. Verified.
+- APK rebuilt (Succeeded, 0 errors), installed on phone, online test OK per user.
