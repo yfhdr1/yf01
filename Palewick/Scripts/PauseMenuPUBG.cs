@@ -32,6 +32,8 @@ public class PauseMenuPUBG : MonoBehaviour
     private readonly Button[] tabs = new Button[4];
     private readonly Button[] gfxButtons = new Button[5];
     private readonly Button[] fpsButtons = new Button[6];
+    private GameObject fpsLabel;
+    private bool gfxLayoutDone;
     private Slider sensitivitySlider;
     private Slider volumeSlider;
     private Slider brightnessSlider;
@@ -151,27 +153,11 @@ public class PauseMenuPUBG : MonoBehaviour
     }
     private void BuildExtraGraphicsUI()
     {
-        if (gfxButtons[0] == null || gfxButtons[1] == null || gfxButtons[3] == null)
+        if (gfxButtons[0] == null || gfxButtons[3] == null)
         {
             return;
         }
-        RectTransform r0 = gfxButtons[0].GetComponent<RectTransform>();
-        RectTransform r1 = gfxButtons[1].GetComponent<RectTransform>();
-        RectTransform r3 = gfxButtons[3].GetComponent<RectTransform>();
-        Transform page = r0.parent;
-        LayoutGroup group = page.GetComponent<LayoutGroup>();
-        if (group != null)
-        {
-            group.enabled = false;
-        }
-        float w = r0.rect.width;
-        float h = r0.rect.height;
-        float gap = Mathf.Max(0f, (r1.anchoredPosition.x - r0.anchoredPosition.x) - w);
-        float left = r0.anchoredPosition.x - w * r0.pivot.x;
-        float right = r3.anchoredPosition.x + w * (1f - r3.pivot.x);
-        float span = right - left;
-        float rowY = r0.anchoredPosition.y;
-        float fpsY = rowY - h * 1.6f;
+        Transform page = gfxButtons[0].transform.parent;
         GameObject ultimate = FindChild(page, "GfxUltimate");
         if (ultimate == null)
         {
@@ -180,15 +166,15 @@ public class PauseMenuPUBG : MonoBehaviour
         }
         SetLabel(ultimate, "ULTIMATE");
         gfxButtons[4] = ultimate.GetComponent<Button>();
-        LayoutRow(gfxButtons, left, span, gap, rowY);
         GameObject label = FindChild(page, "Label");
-        if (label != null && FindChild(page, "FpsLabel") == null)
+        if (label != null)
         {
-            GameObject fpsLabel = Instantiate(label, page);
-            fpsLabel.name = "FpsLabel";
-            RectTransform lr = fpsLabel.GetComponent<RectTransform>();
-            RectTransform orig = label.GetComponent<RectTransform>();
-            lr.anchoredPosition = new Vector2(orig.anchoredPosition.x, orig.anchoredPosition.y + (fpsY - rowY));
+            fpsLabel = FindChild(page, "FpsLabel");
+            if (fpsLabel == null)
+            {
+                fpsLabel = Instantiate(label, page);
+                fpsLabel.name = "FpsLabel";
+            }
             SetLabel(fpsLabel, "FPS");
         }
         for (int i = 0; i < fpsButtons.Length; i++)
@@ -203,12 +189,60 @@ public class PauseMenuPUBG : MonoBehaviour
             SetLabel(go, FpsOptions[i].ToString());
             fpsButtons[i] = go.GetComponent<Button>();
         }
-        LayoutRow(fpsButtons, left, span, gap, fpsY);
     }
-    private static void LayoutRow(Button[] row, float left, float span, float gap, float y)
+    private void LayoutGraphicsRows()
+    {
+        if (gfxLayoutDone || gfxButtons[0] == null || gfxButtons[1] == null || gfxButtons[3] == null)
+        {
+            return;
+        }
+        RectTransform r0 = gfxButtons[0].GetComponent<RectTransform>();
+        RectTransform page = r0.parent as RectTransform;
+        if (page == null || !page.gameObject.activeInHierarchy)
+        {
+            return;
+        }
+        Canvas.ForceUpdateCanvases();
+        Rect b0 = LocalRect(r0, page);
+        Rect b1 = LocalRect(gfxButtons[1].GetComponent<RectTransform>(), page);
+        Rect b3 = LocalRect(gfxButtons[3].GetComponent<RectTransform>(), page);
+        if (b0.width < 2f || b0.height < 2f)
+        {
+            return;
+        }
+        gfxLayoutDone = true;
+        LayoutGroup group = page.GetComponent<LayoutGroup>();
+        if (group != null)
+        {
+            group.enabled = false;
+        }
+        float w = b0.width;
+        float h = b0.height;
+        float gap = Mathf.Max(4f, b1.xMin - b0.xMax);
+        float right = b3.xMax;
+        float rowY = b0.center.y;
+        float fpsY = rowY - h * 1.6f;
+        PlaceRow(gfxButtons, right, w, h, gap, rowY);
+        PlaceRow(fpsButtons, right, w, h, gap, fpsY);
+        GameObject label = FindChild(page, "Label");
+        if (fpsLabel != null && label != null)
+        {
+            RectTransform lr = fpsLabel.GetComponent<RectTransform>();
+            RectTransform orig = label.GetComponent<RectTransform>();
+            lr.localPosition = orig.localPosition + new Vector3(0f, fpsY - rowY, 0f);
+        }
+    }
+    private static Rect LocalRect(RectTransform rt, RectTransform space)
+    {
+        Vector3[] c = new Vector3[4];
+        rt.GetWorldCorners(c);
+        Vector3 a = space.InverseTransformPoint(c[0]);
+        Vector3 b = space.InverseTransformPoint(c[2]);
+        return Rect.MinMaxRect(Mathf.Min(a.x, b.x), Mathf.Min(a.y, b.y), Mathf.Max(a.x, b.x), Mathf.Max(a.y, b.y));
+    }
+    private static void PlaceRow(Button[] row, float right, float w, float h, float gap, float y)
     {
         int count = row.Length;
-        float cellW = (span - gap * (count - 1)) / count;
         for (int i = 0; i < count; i++)
         {
             if (row[i] == null)
@@ -216,9 +250,12 @@ public class PauseMenuPUBG : MonoBehaviour
                 continue;
             }
             RectTransform rt = row[i].GetComponent<RectTransform>();
-            rt.sizeDelta = new Vector2(rt.sizeDelta.x + (cellW - rt.rect.width), rt.sizeDelta.y);
-            float x = left + i * (cellW + gap) + cellW * rt.pivot.x;
-            rt.anchoredPosition = new Vector2(x, y);
+            float x = right - (count - 1 - i) * (w + gap) - w * 0.5f;
+            rt.anchorMin = new Vector2(0.5f, 0.5f);
+            rt.anchorMax = new Vector2(0.5f, 0.5f);
+            rt.pivot = new Vector2(0.5f, 0.5f);
+            rt.sizeDelta = new Vector2(w, h);
+            rt.localPosition = new Vector3(x, y, rt.localPosition.z);
         }
     }
     private static void SetLabel(GameObject go, string value)
@@ -449,6 +486,10 @@ public class PauseMenuPUBG : MonoBehaviour
                     t.color = i == index ? textOn : textOff;
                 }
             }
+        }
+        if (index == 3)
+        {
+            LayoutGraphicsRows();
         }
     }
     private void SetGraphics(string level)
