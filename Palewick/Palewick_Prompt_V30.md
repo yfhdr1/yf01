@@ -240,3 +240,12 @@ PlayerHealth الجديد وEnemyAI (IsDead) انلصقوا بالمشروع، �
 - Unchanged OK: HeartbeatSfx, IntroManager, PauseMenuPUBG, PlayerHealth, PlayerInteraction (holds IInteractable), PlayerSetup, SceneLoadingController, ServerBrowser, EnemyAI.
 - Note: NetworkManager sets QualitySettings.pixelLightCount = 8 (left as is, needs user request to change).
 - Next: rebuild APK (DoorController/Footstep RPC/serialization changes need same build on all devices).
+
+## Status 2026-09-29 (graphics menu art + build)
+- Button art: Palewick/UI/Btn_Smooth, Btn_Balanced, Btn_HD, Btn_Ultra, Btn_Ultimate, Btn_Fps30/45/60/90/120/144 (obsidian + gold, text inside, transparent). Imported to Assets/UI_Icons.
+- PauseMenuPUBG: field buttonSprites (Sprite[]) on PubgPauseMenu holds all 11; assigned by sprite name at runtime (GfxSpriteNames / "Btn_Fps"+fps). Custom sprites: selected white, others 0.55 gray, preserveAspect, child text hidden.
+- Canvas Scaler: Scale With Screen Size 1920x1080, Match = 1 (height). Tested 720p/2160x1080/2960x1440/800x480: OK.
+- Editor: Jobs > Burst > Enable Compilation OFF (Burst server dotnet.exe ate 4-5 GB RAM). Build still Burst-AOT.
+- Build failed once: Library/BurstCache/JIT/BurstCacheManifest.cm locked. Fix: close Unity, kill dotnet.exe/Unity.exe, delete Library/BurstCache (user approved), rebuild.
+- APK rebuilt (Succeeded, 9m35s), phone test: everything works per user.
+- PC: Dell Latitude E7240, i5-4310U, 8 GB DDR3 (2/2 slots). Upgrade advice: 2x8 GB DDR3L 1600 SODIMM. Defender exclusions for project + Unity editor, High performance plan, Memory integrity off.
