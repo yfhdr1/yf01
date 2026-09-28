@@ -349,6 +349,11 @@ public class PauseMenuPUBG : MonoBehaviour
             t.gameObject.SetActive(true);
             t.color = gold;
             t.fontStyle = FontStyle.Bold;
+            t.alignment = TextAnchor.MiddleCenter;
+            t.resizeTextForBestFit = true;
+            t.resizeTextMinSize = 8;
+            t.resizeTextMaxSize = 200;
+            FitTextRect(t.rectTransform);
         }
         TMP_Text tm = button.GetComponentInChildren<TMP_Text>(true);
         if (tm != null)
@@ -356,7 +361,20 @@ public class PauseMenuPUBG : MonoBehaviour
             tm.gameObject.SetActive(true);
             tm.color = gold;
             tm.fontStyle = FontStyles.Bold;
+            tm.alignment = TextAlignmentOptions.Center;
+            tm.enableAutoSizing = true;
+            tm.fontSizeMin = 8f;
+            tm.fontSizeMax = 200f;
+            FitTextRect(tm.rectTransform);
         }
+    }
+    private static void FitTextRect(RectTransform rt)
+    {
+        rt.anchorMin = new Vector2(0.14f, 0.2f);
+        rt.anchorMax = new Vector2(0.86f, 0.8f);
+        rt.offsetMin = Vector2.zero;
+        rt.offsetMax = Vector2.zero;
+        rt.localScale = Vector3.one;
     }
     private static bool IsCustomSprite(Image img)
     {
