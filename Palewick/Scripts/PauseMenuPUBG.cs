@@ -19,6 +19,8 @@ public class PauseMenuPUBG : MonoBehaviour
     private static readonly string[] LevelKeys = { "low", "medium", "high", "ultra", "ultimate" };
     private static readonly string[] LevelNames = { "SMOOTH", "BALANCED", "HD", "ULTRA", "ULTIMATE" };
     private static readonly int[] FpsOptions = { 30, 45, 60, 90, 120, 144 };
+    private static readonly string[] GfxSpriteNames = { "Btn_Smooth", "Btn_Balanced", "Btn_HD", "Btn_Ultra", "Btn_Ultimate" };
+    [SerializeField] private Sprite[] buttonSprites = new Sprite[0];
     private static int currentSlot = 1;
     private PostProcessLayer ppLayer;
     private PostProcessVolume ppVolume;
@@ -91,6 +93,7 @@ public class PauseMenuPUBG : MonoBehaviour
         gfxButtons[2] = FindButton("GfxHigh");
         gfxButtons[3] = FindButton("GfxUltra");
         BuildExtraGraphicsUI();
+        ApplyButtonSprites();
         sensitivitySlider = FindSlider("SensitivitySlider");
         volumeSlider = FindSlider("VolumeSlider");
         brightnessSlider = FindSlider("BrightnessSlider");
@@ -224,6 +227,55 @@ public class PauseMenuPUBG : MonoBehaviour
         if (tm != null)
         {
             tm.gameObject.SetActive(true);
+        }
+    }
+    private void ApplyButtonSprites()
+    {
+        if (buttonSprites == null)
+        {
+            return;
+        }
+        for (int i = 0; i < buttonSprites.Length; i++)
+        {
+            Sprite sp = buttonSprites[i];
+            if (sp == null)
+            {
+                continue;
+            }
+            for (int g = 0; g < gfxButtons.Length; g++)
+            {
+                if (sp.name == GfxSpriteNames[g])
+                {
+                    SetCustomSprite(gfxButtons[g], sp);
+                }
+            }
+            for (int f = 0; f < fpsButtons.Length; f++)
+            {
+                if (sp.name == "Btn_Fps" + FpsOptions[f])
+                {
+                    SetCustomSprite(fpsButtons[f], sp);
+                }
+            }
+        }
+    }
+    private static void SetCustomSprite(Button button, Sprite sp)
+    {
+        if (button == null || button.image == null)
+        {
+            return;
+        }
+        button.image.sprite = sp;
+        button.image.type = Image.Type.Simple;
+        button.image.preserveAspect = true;
+        Text[] texts = button.GetComponentsInChildren<Text>(true);
+        for (int i = 0; i < texts.Length; i++)
+        {
+            texts[i].gameObject.SetActive(false);
+        }
+        TMP_Text[] tms = button.GetComponentsInChildren<TMP_Text>(true);
+        for (int i = 0; i < tms.Length; i++)
+        {
+            tms[i].gameObject.SetActive(false);
         }
     }
     private static bool IsCustomSprite(Image img)
@@ -680,7 +732,7 @@ public class PauseMenuPUBG : MonoBehaviour
             SetButtonState(fpsButtons[i], FpsOptions[i] == fps);
             if (!supported && fpsButtons[i].image != null)
             {
-                fpsButtons[i].image.color = new Color(gfxOff.r, gfxOff.g, gfxOff.b, 0.3f);
+                fpsButtons[i].image.color = IsCustomSprite(fpsButtons[i].image) ? new Color(0.35f, 0.35f, 0.35f, 0.35f) : new Color(gfxOff.r, gfxOff.g, gfxOff.b, 0.3f);
             }
         }
     }
