@@ -192,10 +192,43 @@ public class PauseMenuPUBG : MonoBehaviour
             {
                 go = Instantiate(gfxButtons[0].gameObject, page);
                 go.name = fpsName;
+                ResetClonedLook(go);
             }
             SetLabel(go, FpsOptions[i].ToString());
             fpsButtons[i] = go.GetComponent<Button>();
         }
+    }
+    private void ResetClonedLook(GameObject go)
+    {
+        Image img = go.GetComponent<Image>();
+        if (img != null && IsCustomSprite(img))
+        {
+            Sprite plain = null;
+            for (int i = 0; i < 4; i++)
+            {
+                if (gfxButtons[i] != null && gfxButtons[i].image != null && !IsCustomSprite(gfxButtons[i].image))
+                {
+                    plain = gfxButtons[i].image.sprite;
+                    break;
+                }
+            }
+            img.sprite = plain;
+            img.preserveAspect = false;
+        }
+        Text t = go.GetComponentInChildren<Text>(true);
+        if (t != null)
+        {
+            t.gameObject.SetActive(true);
+        }
+        TMP_Text tm = go.GetComponentInChildren<TMP_Text>(true);
+        if (tm != null)
+        {
+            tm.gameObject.SetActive(true);
+        }
+    }
+    private static bool IsCustomSprite(Image img)
+    {
+        return img != null && img.sprite != null && img.sprite.name.StartsWith("Btn_");
     }
     private void LayoutGraphicsRows()
     {
@@ -655,6 +688,11 @@ public class PauseMenuPUBG : MonoBehaviour
     {
         if (button == null)
         {
+            return;
+        }
+        if (IsCustomSprite(button.image))
+        {
+            button.image.color = on ? Color.white : new Color(0.55f, 0.55f, 0.55f, 1f);
             return;
         }
         if (button.image != null)
