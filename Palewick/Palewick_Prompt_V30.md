@@ -277,3 +277,8 @@ PlayerHealth الجديد وEnemyAI (IsDead) انلصقوا بالمشروع، �
 - Generator: Palewick/Tools/hud_button_style.py (add a line to ITEMS: name, icon key 'mdi:<name>' or 'fa:<name>', size, rotation, flip, extra, seed). Output 256x256 PNG, delivered to Assets/UI_Icons as Sprite (2D and UI).
 - Approved files: Palewick/UI_Icons/HUD/hud_sprint, hud_jump, hud_settings, hud_view, hud_flashlight, hud_door (.png).
 - Icons come from free icon fonts (Material Design Icons / Font Awesome Free via qtawesome); never copy PUBG artwork.
+
+## PERMANENT RULE — FILE DELIVERY STEPS (user demand, never repeat) — 2026-09-29
+- When giving a file: only give the GitHub link and the target path in the project. Nothing else.
+- NEVER explain: open Notepad, paste, Ctrl+A/Ctrl+V, Save As, "Save as type: All Files", "go back to Unity and wait for loading". The user knows these.
+- UI must exist in the Editor inside the Canvas (visible and editable in Hierarchy/Scene), not built only at runtime on Play.
