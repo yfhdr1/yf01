@@ -22,6 +22,7 @@ public class ChatSystem : MonoBehaviour, IOnEventCallback
     private const float BarHeight = 78f;
     private static readonly string[] HintLabels = { "Tap to type", "انقر للكتابة", "کرتە بکە بۆ نووسین" };
     private static readonly string[] TeamLabels = { "Team", "الفريق", "تیم" };
+    private static readonly string[] EmptyLabels = { "No messages yet", "لا توجد رسائل بعد", "هیچ نامەیەک نییە" };
     private static readonly string[][] QuickMessages =
     {
         new[] { "Help!", "Monster here!", "Follow me!", "Run!", "Wait for me!", "Let's go!", "Thanks!", "Sorry!", "OK!", "No!" },
@@ -50,6 +51,15 @@ public class ChatSystem : MonoBehaviour, IOnEventCallback
     private Sprite clockSprite;
     private Sprite sendSprite;
     private Sprite squareSprite;
+    private Sprite panelSprite;
+    private AudioClip popClip;
+    private AudioSource audioSource;
+    private CanvasGroup panelGroup;
+    private Text badgeText;
+    private Text emptyText;
+    private Image sendImage;
+    private int unread;
+    private float openTime;
     private RectTransform floatBox;
     private GameObject iconObject;
     private Image chatGlyph;
@@ -163,6 +173,11 @@ public class ChatSystem : MonoBehaviour, IOnEventCallback
         DestroySprite(clockSprite);
         DestroySprite(sendSprite);
         DestroySprite(squareSprite);
+        DestroySprite(panelSprite);
+        if (popClip != null)
+        {
+            Destroy(popClip);
+        }
     }
     private static void DestroySprite(Sprite s)
     {
@@ -185,6 +200,12 @@ public class ChatSystem : MonoBehaviour, IOnEventCallback
         bubbleSprite = MakeBubbleIcon(128);
         clockSprite = MakeClockIcon(128);
         sendSprite = MakeSendIcon(128);
+        panelSprite = MakeRoundSprite(64, 18);
+        popClip = MakePop();
+        audioSource = gameObject.AddComponent<AudioSource>();
+        audioSource.playOnAwake = false;
+        audioSource.spatialBlend = 0f;
+        audioSource.volume = 0.35f;
         Build();
         SetOpen(false);
         if (transform.parent != null)
@@ -220,26 +241,35 @@ public class ChatSystem : MonoBehaviour, IOnEventCallback
         closeGlyph = x.gameObject;
         Image dot = AddImage(NewRect("Badge", icon.rectTransform), new Color(0.95f, 0.2f, 0.15f, 1f));
         dot.sprite = circleSprite;
-        Place(dot.rectTransform, new Vector2(1f, 1f), new Vector2(0.5f, 0.5f), new Vector2(-14f, -14f), new Vector2(22f, 22f));
+        Place(dot.rectTransform, new Vector2(1f, 1f), new Vector2(0.5f, 0.5f), new Vector2(-12f, -12f), new Vector2(34f, 34f));
+        badgeText = MakeText(dot.rectTransform, "", 20, TextAnchor.MiddleCenter, Color.white);
+        badgeText.fontStyle = FontStyle.Bold;
+        Stretch(badgeText.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
         badge = dot.gameObject;
         badge.SetActive(false);
         Button iconButton = icon.gameObject.AddComponent<Button>();
         Bind(iconButton, ToggleOpen);
         floatBox = NewRect("ChatFloat", root);
-        Place(floatBox, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-300f, -290f), new Vector2(PanelWidth, 260f));
+        Place(floatBox, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-290f, -290f), new Vector2(PanelWidth + 60f, 260f));
         VerticalLayoutGroup fv = floatBox.gameObject.AddComponent<VerticalLayoutGroup>();
         fv.childAlignment = TextAnchor.UpperRight;
         fv.childControlWidth = true;
         fv.childControlHeight = true;
         fv.childForceExpandWidth = true;
         fv.childForceExpandHeight = false;
-        fv.spacing = 4f;
-        Image bg = AddImage(NewRect("ChatPanel", root), new Color(0f, 0f, 0f, 0.72f));
+        fv.spacing = 2f;
+        Image bg = AddImage(NewRect("ChatPanel", root), new Color(0.02f, 0.02f, 0.03f, 0.78f));
+        bg.sprite = panelSprite;
+        bg.type = Image.Type.Sliced;
         bg.raycastTarget = true;
         panel = bg.gameObject;
+        panelGroup = panel.AddComponent<CanvasGroup>();
+        Outline edge = panel.AddComponent<Outline>();
+        edge.effectColor = new Color(1f, 1f, 1f, 0.08f);
+        edge.effectDistance = new Vector2(1.5f, -1.5f);
         RectTransform prt = bg.rectTransform;
         Place(prt, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-300f, -180f), new Vector2(PanelWidth, PanelHeight));
-        Image column = AddImage(NewRect("Column", prt), new Color(0f, 0f, 0f, 0.35f));
+        Image column = AddImage(NewRect("Column", prt), new Color(0f, 0f, 0f, 0f));
         Stretch(column.rectTransform, Vector2.zero, new Vector2(0f, 1f), new Vector2(0f, BarHeight), new Vector2(ColumnWidth, 0f));
         Image colLine = AddImage(NewRect("Line", column.rectTransform), separator);
         Stretch(colLine.rectTransform, new Vector2(1f, 0f), Vector2.one, new Vector2(-2f, 0f), Vector2.zero);
@@ -250,11 +280,13 @@ public class ChatSystem : MonoBehaviour, IOnEventCallback
         historyView = MakeList(area, "History", out historyContent, out historyScroll);
         ScrollRect quickScroll;
         quickView = MakeList(area, "Quick", out quickContent, out quickScroll);
-        Image bar = AddImage(NewRect("Bar", prt), new Color(0.1f, 0.1f, 0.1f, 0.85f));
+        emptyText = MakeText(historyView.transform, "", 23, TextAnchor.MiddleCenter, new Color(1f, 1f, 1f, 0.4f));
+        Stretch(emptyText.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+        Image bar = AddImage(NewRect("Bar", prt), new Color(1f, 1f, 1f, 0.04f));
         Stretch(bar.rectTransform, Vector2.zero, new Vector2(1f, 0f), Vector2.zero, new Vector2(0f, BarHeight));
         Image barLine = AddImage(NewRect("Line", bar.rectTransform), separator);
         Stretch(barLine.rectTransform, new Vector2(0f, 1f), Vector2.one, new Vector2(0f, -2f), Vector2.zero);
-        teamText = MakeText(bar.rectTransform, "", 24, TextAnchor.MiddleCenter, Color.white);
+        teamText = MakeText(bar.rectTransform, "", 24, TextAnchor.MiddleCenter, yellow);
         Stretch(teamText.rectTransform, Vector2.zero, new Vector2(0f, 1f), Vector2.zero, new Vector2(ColumnWidth, 0f));
         Image teamLine = AddImage(NewRect("Sep", bar.rectTransform), separator);
         Place(teamLine.rectTransform, new Vector2(0f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(ColumnWidth, 0f), new Vector2(2f, 44f));
@@ -283,11 +315,13 @@ public class ChatSystem : MonoBehaviour, IOnEventCallback
         input.onValueChanged.AddListener(OnTyping);
         input.onEndEdit.AddListener(OnEndEdit);
         Image send = AddImage(NewRect("Send", bar.rectTransform), yellow);
+        sendImage = send;
         send.sprite = sendSprite;
         send.raycastTarget = true;
         Place(send.rectTransform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-16f, 0f), new Vector2(52f, 52f));
         Button sendButton = send.gameObject.AddComponent<Button>();
         Bind(sendButton, Send);
+        UpdateSendLook("");
         ApplyLanguage();
         SelectTab(1);
     }
@@ -301,8 +335,10 @@ public class ChatSystem : MonoBehaviour, IOnEventCallback
         tab.offsetMax = new Vector2(-2f, -index * 96f);
         Image hit = AddImage(tab, new Color(1f, 1f, 1f, 0.001f));
         hit.raycastTarget = true;
-        mark = AddImage(NewRect("Mark", tab), new Color(1f, 1f, 1f, 0.06f));
-        Stretch(mark.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+        mark = AddImage(NewRect("Mark", tab), new Color(1f, 1f, 1f, 0.07f));
+        Stretch(mark.rectTransform, Vector2.zero, Vector2.one, new Vector2(0f, 6f), new Vector2(0f, -6f));
+        Image accent = AddImage(NewRect("Accent", mark.rectTransform), yellow);
+        Stretch(accent.rectTransform, Vector2.zero, new Vector2(0f, 1f), new Vector2(0f, 10f), new Vector2(5f, -10f));
         Image ic = AddImage(NewRect("Icon", tab), iconIdle);
         ic.sprite = sprite;
         Place(ic.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(48f, 48f));
@@ -367,6 +403,9 @@ public class ChatSystem : MonoBehaviour, IOnEventCallback
         teamText.text = lang == 0 ? TeamLabels[0] : PwRtl.Visual(TeamLabels[lang]);
         placeholder.text = lang == 0 ? HintLabels[0] : PwRtl.Visual(HintLabels[lang]);
         placeholder.alignment = lang == 0 ? TextAnchor.MiddleLeft : TextAnchor.MiddleRight;
+        emptyText.font = f;
+        emptyText.text = lang == 0 ? EmptyLabels[0] : PwRtl.Visual(EmptyLabels[lang]);
+        emptyText.gameObject.SetActive(historyRows.Count == 0);
         for (int i = 0; i < quickRows.Count; i++)
         {
             if (quickRows[i] != null)
@@ -417,8 +456,12 @@ public class ChatSystem : MonoBehaviour, IOnEventCallback
         closeGlyph.SetActive(open);
         if (open)
         {
+            unread = 0;
             badge.SetActive(false);
             scrollPending = true;
+            openTime = Time.unscaledTime;
+            panelGroup.alpha = 0f;
+            panel.transform.localScale = new Vector3(0.94f, 0.94f, 1f);
         }
         else
         {
@@ -431,6 +474,30 @@ public class ChatSystem : MonoBehaviour, IOnEventCallback
         inputText.color = rtl ? new Color(0f, 0f, 0f, 0f) : Color.white;
         input.caretColor = rtl ? new Color(0f, 0f, 0f, 0f) : Color.white;
         preview.text = rtl ? PwRtl.Visual(value) : "";
+        UpdateSendLook(value);
+    }
+    private void UpdateSendLook(string value)
+    {
+        if (sendImage != null)
+        {
+            sendImage.color = Clean(value).Length > 0 ? yellow : new Color(yellow.r, yellow.g, yellow.b, 0.45f);
+        }
+    }
+    private static AudioClip MakePop()
+    {
+        int rate = 44100;
+        int count = rate / 8;
+        float[] data = new float[count];
+        for (int i = 0; i < count; i++)
+        {
+            float t = (float)i / rate;
+            float env = Mathf.Exp(-t * 38f) * Mathf.Clamp01(t * 400f);
+            float f = Mathf.Lerp(880f, 1320f, Mathf.Clamp01(t * 20f));
+            data[i] = Mathf.Sin(2f * Mathf.PI * f * t) * env * 0.6f;
+        }
+        AudioClip clip = AudioClip.Create("ChatPop", count, 1, rate, false);
+        clip.SetData(data, 0);
+        return clip;
     }
     private void OnEndEdit(string value)
     {
@@ -497,9 +564,18 @@ public class ChatSystem : MonoBehaviour, IOnEventCallback
         }
         AddMessage(nick, msg, TeamNumber(photonEvent.Sender));
         bool mine = PhotonNetwork.LocalPlayer != null && photonEvent.Sender == PhotonNetwork.LocalPlayer.ActorNumber;
-        if (!isOpen && !mine)
+        if (!mine)
         {
-            badge.SetActive(true);
+            if (!isOpen)
+            {
+                unread++;
+                badgeText.text = unread > 9 ? "9+" : unread.ToString();
+                badge.SetActive(true);
+            }
+            if (audioSource != null && popClip != null && !hiddenByLoading)
+            {
+                audioSource.PlayOneShot(popClip);
+            }
         }
     }
     private static int TeamNumber(int actor)
@@ -552,13 +628,29 @@ public class ChatSystem : MonoBehaviour, IOnEventCallback
             floatLines.RemoveAt(0);
             floatTimes.RemoveAt(0);
         }
+        emptyText.gameObject.SetActive(false);
         scrollPending = true;
+    }
+    private static string Hex(Color c)
+    {
+        return ColorUtility.ToHtmlStringRGB(c);
+    }
+    private static string Vis(string s)
+    {
+        return HasRtl(s) ? PwRtl.Visual(s) : s;
     }
     private GameObject MakeRow(RectTransform parent, string nick, string msg, int number, bool floating)
     {
         bool rtlUi = Lang() > 0;
-        bool rtl = HasRtl(msg) || HasRtl(nick) || rtlUi;
-        List<string> parts = Wrap(nick + ": " + msg, RowWrap);
+        bool rightSide = floating || rtlUi;
+        bool rtlMsg = HasRtl(msg);
+        if (nick.Length > 14)
+        {
+            nick = nick.Substring(0, 14);
+        }
+        Color team = TeamColors[Mathf.Clamp(number - 1, 0, TeamColors.Length - 1)];
+        string head = nick + ":";
+        List<string> parts = Wrap(head + " " + msg, RowWrap);
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < parts.Count; i++)
         {
@@ -566,46 +658,66 @@ public class ChatSystem : MonoBehaviour, IOnEventCallback
             {
                 sb.Append('\n');
             }
-            sb.Append(HasRtl(parts[i]) ? PwRtl.Visual(parts[i]) : parts[i]);
+            string line = parts[i];
+            if (i == 0 && line.StartsWith(head))
+            {
+                string rest = line.Substring(head.Length).Trim();
+                string name = "<color=#" + Hex(team) + ">" + (rtlMsg ? ":" + Vis(nick) : Vis(nick) + ":") + "</color>";
+                if (rtlMsg)
+                {
+                    sb.Append(Vis(rest)).Append(' ').Append(name);
+                }
+                else
+                {
+                    sb.Append(name).Append(' ').Append(Vis(rest));
+                }
+            }
+            else
+            {
+                sb.Append(Vis(line));
+            }
         }
-        float height = 26f + parts.Count * 30f;
+        float height = (floating ? 14f : 26f) + parts.Count * 30f;
         RectTransform row = NewRect("Msg", parent);
         LayoutElement le = row.gameObject.AddComponent<LayoutElement>();
         le.preferredHeight = height;
         le.minHeight = height;
-        if (floating)
-        {
-            Image bg = AddImage(row, new Color(0f, 0f, 0f, 0.6f));
-            bg.raycastTarget = false;
-        }
-        else
+        if (!floating)
         {
             Image line = AddImage(NewRect("Line", row), separator);
             Stretch(line.rectTransform, Vector2.zero, new Vector2(1f, 0f), new Vector2(12f, 0f), new Vector2(-12f, 2f));
         }
-        Image sq = AddImage(NewRect("Num", row), TeamColors[Mathf.Clamp(number - 1, 0, TeamColors.Length - 1)]);
+        float top = floating ? -7f : -14f;
+        Image sq = AddImage(NewRect("Num", row), team);
         sq.sprite = squareSprite;
         sq.type = Image.Type.Sliced;
-        float sx = rtlUi ? -14f : 14f;
-        Place(sq.rectTransform, new Vector2(rtlUi ? 1f : 0f, 1f), new Vector2(rtlUi ? 1f : 0f, 1f), new Vector2(sx, -14f), new Vector2(32f, 32f));
-        Text num = MakeText(sq.rectTransform, number.ToString(), 22, TextAnchor.MiddleCenter, Color.white);
+        Place(sq.rectTransform, new Vector2(rightSide ? 1f : 0f, 1f), new Vector2(rightSide ? 1f : 0f, 1f), new Vector2(rightSide ? -14f : 14f, top), new Vector2(30f, 30f));
+        Text num = MakeText(sq.rectTransform, number.ToString(), 21, TextAnchor.MiddleCenter, Color.white);
         num.fontStyle = FontStyle.Bold;
         Stretch(num.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
-        Text t = MakeText(row, sb.ToString(), 24, rtlUi ? TextAnchor.UpperRight : TextAnchor.UpperLeft, Color.white);
-        t.font = rtl ? rtlFont : latinFont;
-        t.supportRichText = false;
+        Shadow ns = num.gameObject.AddComponent<Shadow>();
+        ns.effectColor = new Color(0f, 0f, 0f, 0.5f);
+        Text t = MakeText(row, sb.ToString(), 24, rightSide ? TextAnchor.UpperRight : TextAnchor.UpperLeft, Color.white);
+        t.font = rtlMsg || HasRtl(nick) ? rtlFont : latinFont;
+        t.supportRichText = true;
         t.lineSpacing = 1f;
-        if (rtlUi)
+        if (rightSide)
         {
-            Stretch(t.rectTransform, Vector2.zero, Vector2.one, new Vector2(12f, 0f), new Vector2(-56f, -14f));
+            Stretch(t.rectTransform, Vector2.zero, Vector2.one, new Vector2(12f, 0f), new Vector2(-54f, top + 2f));
         }
         else
         {
-            Stretch(t.rectTransform, Vector2.zero, Vector2.one, new Vector2(56f, 0f), new Vector2(-12f, -14f));
+            Stretch(t.rectTransform, Vector2.zero, Vector2.one, new Vector2(54f, 0f), new Vector2(-12f, top + 2f));
+        }
+        if (floating)
+        {
+            Outline o = t.gameObject.AddComponent<Outline>();
+            o.effectColor = new Color(0f, 0f, 0f, 0.85f);
+            o.effectDistance = new Vector2(1.6f, -1.6f);
         }
         Shadow sh = t.gameObject.AddComponent<Shadow>();
-        sh.effectColor = new Color(0f, 0f, 0f, 0.7f);
-        sh.effectDistance = new Vector2(1.5f, -1.5f);
+        sh.effectColor = new Color(0f, 0f, 0f, floating ? 0.9f : 0.7f);
+        sh.effectDistance = new Vector2(2f, -2f);
         return row.gameObject;
     }
     private void LateUpdate()
@@ -625,6 +737,13 @@ public class ChatSystem : MonoBehaviour, IOnEventCallback
                 SetOpen(false);
             }
         }
+        if (isOpen && panelGroup != null && panelGroup.alpha < 1f)
+        {
+            float k = Mathf.Clamp01((Time.unscaledTime - openTime) / 0.12f);
+            panelGroup.alpha = k;
+            float sc = Mathf.Lerp(0.94f, 1f, k);
+            panel.transform.localScale = new Vector3(sc, sc, 1f);
+        }
         for (int i = floatLines.Count - 1; i >= 0; i--)
         {
             CanvasGroup g = floatLines[i];
@@ -633,12 +752,12 @@ public class ChatSystem : MonoBehaviour, IOnEventCallback
                 continue;
             }
             float age = Time.unscaledTime - floatTimes[i];
-            float a = Mathf.Clamp01(1f - (age - ShowTime) / FadeTime);
+            float a = Mathf.Min(Mathf.Clamp01(age / 0.2f), Mathf.Clamp01(1f - (age - ShowTime) / FadeTime));
             if (!Mathf.Approximately(g.alpha, a))
             {
                 g.alpha = a;
             }
-            if (a <= 0f)
+            if (a <= 0f && age > ShowTime)
             {
                 Destroy(g.gameObject);
                 floatLines.RemoveAt(i);
