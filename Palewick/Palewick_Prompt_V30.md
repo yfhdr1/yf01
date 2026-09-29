@@ -285,3 +285,5 @@ PlayerHealth الجديد وEnemyAI (IsDead) انلصقوا بالمشروع، �
 - Every button/HUD icon PNG import rule (user rule): Texture Type = Sprite (2D and UI), Sprite Mode = Single, then Apply. Always tell the user exactly these two settings for every new icon.
 - NEVER add "check the Console / send errors as text" lines to steps. The user will report problems himself.
 - AutoRunBtn replaced SprintBtn (SprintButton.cs deleted). PlayerSetup wires AutoRunButton.playerMotor. Door button = InteractButton wired by PlayerSetup to PlayerInteraction.OnInteractButtonPressed (hidden until near a door).
+- NEVER write "when done tell me 'done'" at the end of steps. The user always applies the code; just give the next step.
+- Chat: ChatSystem supports editor-built layout via Palewick/Create Chat In Canvas (Editor/ChatBuilder.cs); runtime Wire() binds to existing ChatRoot children by name.
