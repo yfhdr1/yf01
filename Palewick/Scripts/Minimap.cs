@@ -1,19 +1,19 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
-using UnityEngine.SceneManagement;
 using Photon.Pun;
 using Photon.Realtime;
 public class Minimap : MonoBehaviour
 {
-    private const float Diameter = 250f;
-    private const float Range = 30f;
-    private const float Height = 60f;
+    public RawImage mapImage;
+    public RectTransform markers;
+    public Image localArrow;
+    public Sprite dotSprite;
+    public float range = 30f;
+    public float height = 60f;
     private const float RenderInterval = 0.1f;
     private const float SearchInterval = 1f;
     private const int TexSize = 256;
-    private const float FrameInner = 0.67f;
-    private const float FrameCenter = 0.46f;
     private static readonly Color[] TeamColors =
     {
         new Color(0.93f, 0.78f, 0.1f, 1f),
@@ -25,70 +25,49 @@ public class Minimap : MonoBehaviour
     private readonly Dictionary<EnemyAI, Image> enemyDots = new Dictionary<EnemyAI, Image>();
     private readonly List<CharController_Motor> removeMotors = new List<CharController_Motor>();
     private readonly List<EnemyAI> removeEnemies = new List<EnemyAI>();
-    private RectTransform markers;
-    private Image localArrow;
     private RenderTexture texture;
     private Camera mapCamera;
-    private Sprite circleSprite;
-    private Sprite dotSprite;
-    private Sprite arrowSprite;
+    private Sprite generatedDot;
     private CharController_Motor localMotor;
     private GameObject loadingPanel;
     private float nextRender;
     private float nextSearch;
-    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
-    private static void Boot()
-    {
-        SceneManager.sceneLoaded -= OnSceneLoaded;
-        SceneManager.sceneLoaded += OnSceneLoaded;
-    }
-    private static void OnSceneLoaded(Scene scene, LoadSceneMode mode)
-    {
-        Canvas[] canvases = FindObjectsByType<Canvas>(FindObjectsInactive.Include);
-        for (int i = 0; i < canvases.Length; i++)
-        {
-            Canvas c = canvases[i];
-            if (c == null || c.gameObject.scene != scene)
-            {
-                continue;
-            }
-            Transform menu = c.transform.Find("PubgPauseMenu");
-            if (menu == null || c.transform.Find("MinimapRoot") != null)
-            {
-                continue;
-            }
-            GameObject go = new GameObject("MinimapRoot", typeof(RectTransform));
-            go.layer = c.gameObject.layer;
-            RectTransform rt = go.GetComponent<RectTransform>();
-            rt.SetParent(c.transform, false);
-            rt.anchorMin = Vector2.zero;
-            rt.anchorMax = Vector2.one;
-            rt.offsetMin = Vector2.zero;
-            rt.offsetMax = Vector2.zero;
-            int index = menu.GetSiblingIndex();
-            Transform loading = c.transform.Find("LoadingPanel");
-            if (loading != null && loading.GetSiblingIndex() < index)
-            {
-                index = loading.GetSiblingIndex();
-            }
-            rt.SetSiblingIndex(index);
-            go.AddComponent<Minimap>();
-            return;
-        }
-    }
     private void Start()
     {
-        circleSprite = MakeDisc(128, 0f);
-        dotSprite = MakeDisc(64, 7f);
-        arrowSprite = MakeArrow(64);
+        if (mapImage == null)
+        {
+            Transform t = transform.Find("Mask/Map");
+            mapImage = t != null ? t.GetComponent<RawImage>() : null;
+        }
+        if (markers == null)
+        {
+            markers = transform.Find("Mask/Markers") as RectTransform;
+        }
+        if (localArrow == null && markers != null)
+        {
+            Transform t = markers.Find("Me");
+            localArrow = t != null ? t.GetComponent<Image>() : null;
+        }
+        if (mapImage == null || markers == null)
+        {
+            enabled = false;
+            return;
+        }
+        if (dotSprite == null)
+        {
+            Texture2D tex = MakeDiscTexture(64, 7f);
+            generatedDot = Sprite.Create(tex, new Rect(0f, 0f, 64f, 64f), new Vector2(0.5f, 0.5f), 100f);
+            dotSprite = generatedDot;
+        }
         texture = new RenderTexture(TexSize, TexSize, 16, RenderTextureFormat.ARGB32);
         texture.name = "MinimapTexture";
         texture.Create();
+        mapImage.texture = texture;
         BuildCamera();
-        BuildUi();
-        if (transform.parent != null)
+        Canvas canvas = GetComponentInParent<Canvas>();
+        if (canvas != null)
         {
-            Transform lp = transform.parent.Find("LoadingPanel");
+            Transform lp = canvas.rootCanvas.transform.Find("LoadingPanel");
             loadingPanel = lp != null ? lp.gameObject : null;
         }
     }
@@ -99,21 +78,19 @@ public class Minimap : MonoBehaviour
             mapCamera.targetTexture = null;
             Destroy(mapCamera.gameObject);
         }
+        if (mapImage != null && mapImage.texture == texture)
+        {
+            mapImage.texture = null;
+        }
         if (texture != null)
         {
             texture.Release();
             Destroy(texture);
         }
-        DestroySprite(circleSprite);
-        DestroySprite(dotSprite);
-        DestroySprite(arrowSprite);
-    }
-    private static void DestroySprite(Sprite s)
-    {
-        if (s != null)
+        if (generatedDot != null)
         {
-            Destroy(s.texture);
-            Destroy(s);
+            Destroy(generatedDot.texture);
+            Destroy(generatedDot);
         }
     }
     private void BuildCamera()
@@ -121,12 +98,12 @@ public class Minimap : MonoBehaviour
         GameObject go = new GameObject("MinimapCamera");
         mapCamera = go.AddComponent<Camera>();
         mapCamera.orthographic = true;
-        mapCamera.orthographicSize = Range;
+        mapCamera.orthographicSize = range;
         mapCamera.clearFlags = CameraClearFlags.SolidColor;
         mapCamera.backgroundColor = new Color(0.04f, 0.02f, 0.02f, 1f);
         mapCamera.cullingMask = ~(1 << 5);
         mapCamera.nearClipPlane = 0.3f;
-        mapCamera.farClipPlane = Height + 120f;
+        mapCamera.farClipPlane = height + 120f;
         mapCamera.allowHDR = false;
         mapCamera.allowMSAA = false;
         mapCamera.useOcclusionCulling = false;
@@ -134,43 +111,6 @@ public class Minimap : MonoBehaviour
         mapCamera.targetTexture = texture;
         mapCamera.enabled = false;
         go.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
-    }
-    private void BuildUi()
-    {
-        RectTransform root = (RectTransform)transform;
-        RectTransform box = NewRect("Minimap", root);
-        Place(box, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-40f, -170f), new Vector2(Diameter, Diameter));
-        Image maskImage = AddImage(NewRect("Mask", box), Color.white);
-        maskImage.sprite = circleSprite;
-        Stretch(maskImage.rectTransform);
-        Mask mask = maskImage.gameObject.AddComponent<Mask>();
-        mask.showMaskGraphic = false;
-        Image bg = AddImage(NewRect("Back", maskImage.rectTransform), new Color(0.05f, 0.02f, 0.02f, 0.85f));
-        Stretch(bg.rectTransform);
-        RawImage map = NewRect("Map", maskImage.rectTransform).gameObject.AddComponent<RawImage>();
-        map.texture = texture;
-        map.color = new Color(1f, 0.92f, 0.9f, 0.92f);
-        map.raycastTarget = false;
-        Stretch(map.rectTransform);
-        markers = NewRect("Markers", maskImage.rectTransform);
-        Stretch(markers);
-        Sprite frameSprite = Resources.Load<Sprite>("hud_minimap_frame");
-        if (frameSprite != null)
-        {
-            float f = Diameter / FrameInner;
-            Image frame = AddImage(NewRect("Frame", box), Color.white);
-            frame.sprite = frameSprite;
-            Place(frame.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, -(0.5f - FrameCenter) * f), new Vector2(f, f));
-        }
-        else
-        {
-            Outline o = maskImage.gameObject.AddComponent<Outline>();
-            o.effectColor = new Color(0.6f, 0.03f, 0.04f, 1f);
-            o.effectDistance = new Vector2(3f, -3f);
-        }
-        localArrow = AddImage(NewRect("Me", markers), TeamColors[0]);
-        localArrow.sprite = arrowSprite;
-        Place(localArrow.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(30f, 30f));
     }
     private void LateUpdate()
     {
@@ -183,15 +123,22 @@ public class Minimap : MonoBehaviour
         if (localMotor == null || !localMotor.isActiveAndEnabled)
         {
             localMotor = null;
-            localArrow.enabled = false;
+            if (localArrow != null)
+            {
+                localArrow.enabled = false;
+            }
             return;
         }
         Transform me = localMotor.transform;
         Vector3 center = me.position;
-        localArrow.enabled = true;
-        localArrow.color = TeamColor(localMotor);
-        localArrow.rectTransform.localRotation = Quaternion.Euler(0f, 0f, -me.eulerAngles.y);
-        localArrow.rectTransform.SetAsLastSibling();
+        if (localArrow != null)
+        {
+            localArrow.enabled = true;
+            localArrow.color = TeamColor(localMotor);
+            localArrow.rectTransform.anchoredPosition = Vector2.zero;
+            localArrow.rectTransform.localRotation = Quaternion.Euler(0f, 0f, -me.eulerAngles.y);
+            localArrow.rectTransform.SetAsLastSibling();
+        }
         foreach (KeyValuePair<CharController_Motor, Image> kv in playerDots)
         {
             if (kv.Key == null || kv.Value == null)
@@ -230,7 +177,8 @@ public class Minimap : MonoBehaviour
     }
     private void RenderMap(Vector3 center)
     {
-        mapCamera.transform.position = new Vector3(center.x, center.y + Height, center.z);
+        mapCamera.orthographicSize = range;
+        mapCamera.transform.position = new Vector3(center.x, center.y + height, center.z);
         bool fog = RenderSettings.fog;
         Color ambient = RenderSettings.ambientLight;
         RenderSettings.fog = false;
@@ -247,8 +195,8 @@ public class Minimap : MonoBehaviour
     }
     private Vector2 ToMap(Vector3 offset)
     {
-        float half = Diameter * 0.5f;
-        Vector2 p = new Vector2(offset.x, offset.z) / Range * half;
+        float half = markers.rect.width * 0.5f;
+        Vector2 p = new Vector2(offset.x, offset.z) / range * half;
         float max = half - 12f;
         if (p.magnitude > max)
         {
@@ -272,10 +220,7 @@ public class Minimap : MonoBehaviour
             }
             if (!playerDots.ContainsKey(m))
             {
-                Image dot = AddImage(NewRect("Player", markers), Color.white);
-                dot.sprite = dotSprite;
-                Place(dot.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(20f, 20f));
-                playerDots.Add(m, dot);
+                playerDots.Add(m, NewDot("Player", Color.white, 20f));
             }
         }
         EnemyAI[] enemies = FindObjectsByType<EnemyAI>(FindObjectsInactive.Include);
@@ -286,10 +231,7 @@ public class Minimap : MonoBehaviour
             {
                 continue;
             }
-            Image dot = AddImage(NewRect("Monster", markers), new Color(0.9f, 0.05f, 0.05f, 1f));
-            dot.sprite = dotSprite;
-            Place(dot.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(22f, 22f));
-            enemyDots.Add(e, dot);
+            enemyDots.Add(e, NewDot("Monster", new Color(0.9f, 0.05f, 0.05f, 1f), 22f));
         }
         removeMotors.Clear();
         foreach (KeyValuePair<CharController_Motor, Image> kv in playerDots)
@@ -324,6 +266,24 @@ public class Minimap : MonoBehaviour
             enemyDots.Remove(removeEnemies[i]);
         }
     }
+    private Image NewDot(string name, Color color, float size)
+    {
+        GameObject go = new GameObject(name, typeof(RectTransform));
+        go.layer = markers.gameObject.layer;
+        RectTransform rt = go.GetComponent<RectTransform>();
+        rt.SetParent(markers, false);
+        rt.anchorMin = new Vector2(0.5f, 0.5f);
+        rt.anchorMax = new Vector2(0.5f, 0.5f);
+        rt.pivot = new Vector2(0.5f, 0.5f);
+        rt.sizeDelta = new Vector2(size, size);
+        rt.anchoredPosition = Vector2.zero;
+        Image img = go.AddComponent<Image>();
+        img.sprite = dotSprite;
+        img.color = color;
+        img.raycastTarget = false;
+        img.enabled = false;
+        return img;
+    }
     private static Color TeamColor(CharController_Motor m)
     {
         int number = 1;
@@ -341,16 +301,10 @@ public class Minimap : MonoBehaviour
         }
         return TeamColors[Mathf.Clamp(number - 1, 0, TeamColors.Length - 1)];
     }
-    private static Texture2D NewTex(int size)
+    public static Texture2D MakeDiscTexture(int size, float border)
     {
         Texture2D tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
         tex.wrapMode = TextureWrapMode.Clamp;
-        tex.filterMode = FilterMode.Bilinear;
-        return tex;
-    }
-    private static Sprite MakeDisc(int size, float border)
-    {
-        Texture2D tex = NewTex(size);
         Color[] px = new Color[size * size];
         float r = size * 0.5f - 1f;
         Vector2 c = new Vector2(size * 0.5f, size * 0.5f);
@@ -366,11 +320,12 @@ public class Minimap : MonoBehaviour
         }
         tex.SetPixels(px);
         tex.Apply();
-        return Sprite.Create(tex, new Rect(0f, 0f, size, size), new Vector2(0.5f, 0.5f), 100f);
+        return tex;
     }
-    private static Sprite MakeArrow(int size)
+    public static Texture2D MakeArrowTexture(int size)
     {
-        Texture2D tex = NewTex(size);
+        Texture2D tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+        tex.wrapMode = TextureWrapMode.Clamp;
         Color[] px = new Color[size * size];
         Vector2 tip = new Vector2(size * 0.5f, size * 0.96f);
         Vector2 left = new Vector2(size * 0.1f, size * 0.06f);
@@ -383,15 +338,14 @@ public class Minimap : MonoBehaviour
             {
                 Vector2 p = new Vector2(x + 0.5f, y + 0.5f);
                 bool outer = InArrow(p, tip, left, notch, right);
-                Vector2 q = c + (p - c) / 0.7f;
-                bool inner = InArrow(q, tip, left, notch, right);
+                bool inner = InArrow(c + (p - c) / 0.7f, tip, left, notch, right);
                 float v = inner ? 1f : 0f;
                 px[y * size + x] = new Color(v, v, v, outer ? 1f : 0f);
             }
         }
         tex.SetPixels(px);
         tex.Apply();
-        return Sprite.Create(tex, new Rect(0f, 0f, size, size), new Vector2(0.5f, 0.5f), 100f);
+        return tex;
     }
     private static bool InArrow(Vector2 p, Vector2 tip, Vector2 left, Vector2 notch, Vector2 right)
     {
@@ -405,36 +359,5 @@ public class Minimap : MonoBehaviour
         bool neg = d1 < 0f || d2 < 0f || d3 < 0f;
         bool pos = d1 > 0f || d2 > 0f || d3 > 0f;
         return !(neg && pos);
-    }
-    private RectTransform NewRect(string name, Transform parent)
-    {
-        GameObject go = new GameObject(name, typeof(RectTransform));
-        go.layer = parent.gameObject.layer;
-        RectTransform rt = go.GetComponent<RectTransform>();
-        rt.SetParent(parent, false);
-        return rt;
-    }
-    private static Image AddImage(RectTransform rt, Color color)
-    {
-        Image img = rt.gameObject.AddComponent<Image>();
-        img.color = color;
-        img.raycastTarget = false;
-        return img;
-    }
-    private static void Stretch(RectTransform rt)
-    {
-        rt.anchorMin = Vector2.zero;
-        rt.anchorMax = Vector2.one;
-        rt.pivot = new Vector2(0.5f, 0.5f);
-        rt.offsetMin = Vector2.zero;
-        rt.offsetMax = Vector2.zero;
-    }
-    private static void Place(RectTransform rt, Vector2 anchor, Vector2 pivot, Vector2 pos, Vector2 size)
-    {
-        rt.anchorMin = anchor;
-        rt.anchorMax = anchor;
-        rt.pivot = pivot;
-        rt.sizeDelta = size;
-        rt.anchoredPosition = pos;
     }
 }
