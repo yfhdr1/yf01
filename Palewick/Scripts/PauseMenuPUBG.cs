@@ -316,8 +316,8 @@ public class PauseMenuPUBG : MonoBehaviour
         Stretch(bar.rectTransform, Vector2.zero, new Vector2(0f, 1f), Vector2.zero, new Vector2(8f, 0f));
         Image line = AddImage(NewRect("Line", rt), new Color(0.16f, 0.15f, 0.15f, 1f));
         Stretch(line.rectTransform, Vector2.zero, new Vector2(1f, 0f), new Vector2(14f, 0f), new Vector2(-14f, 2f));
-        Text t = MakeText(rt, D(key), 29, TextAnchor.MiddleRight, ash, false);
-        Stretch(t.rectTransform, Vector2.zero, Vector2.one, new Vector2(16f, 0f), new Vector2(-22f, 0f));
+        Text t = MakeText(rt, D(key), 29, TextAnchor.MiddleCenter, ash, false);
+        Stretch(t.rectTransform, Vector2.zero, Vector2.one, new Vector2(14f, 0f), new Vector2(-14f, 0f));
         int index = i;
         BindButton(b, () => SelectTab(index));
         tabFills.Add(fill);
