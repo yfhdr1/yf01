@@ -249,3 +249,12 @@ PlayerHealth الجديد وEnemyAI (IsDead) انلصقوا بالمشروع، �
 - Build failed once: Library/BurstCache/JIT/BurstCacheManifest.cm locked. Fix: close Unity, kill dotnet.exe/Unity.exe, delete Library/BurstCache (user approved), rebuild.
 - APK rebuilt (Succeeded, 9m35s), phone test: everything works per user.
 - PC: Dell Latitude E7240, i5-4310U, 8 GB DDR3 (2/2 slots). Upgrade advice: 2x8 GB DDR3L 1600 SODIMM. Defender exclusions for project + Unity editor, High performance plan, Memory integrity off.
+
+## PLAYER FACTS (never forget) — 2026-09-29
+- The player is NOT in Scene_A. It is spawned online by Photon from `Assets/Resources/WhiteclownPlayer.prefab`. Any player change = open this prefab (Project > Resources > WhiteclownPlayer, double-click), never search Scene_A for it.
+- Prefab hierarchy: WhiteclownPlayer (Tag Player) > PlayerCamera (Tag MainCamera, Camera + Post-process Layer: Trigger=Player, Layer=PostProcessing, No AA) ; mixamorig:Hips (bones) ; WhiteClown (SkinnedMeshRenderer, Root Bone mixamorig:Hips, material whiteclown_diffuse Standard).
+- Root components (order): Transform, Animator, Character Controller, Char Controller_Motor, Player Interaction, Camera View Switcher, Stamina System, Player Setup, Photon View, Photon Transform View, Photon Animator View, Footstep Sound Controller, Player Health, Heartbeat Sfx, Player Quick Chat.
+- Flashlight: mixamorig:Hips > Spine > Spine1 > Spine2 > RightShoulder > RightArm > RightForeArm > RightHand > Flashlight (nested prefab "Flashlight": LP_Flash Light mesh, Mesh Renderer, Animator) > Spotlight (nested prefab "Spotlight": Light Spot, Range 30, Spot Angle 80, White, Realtime, Intensity 4, Indirect 1, No Shadows, Cookie set, Draw Halo off).
+- FlashlightController.cs (Assets/a.last/Flooded_Grounds/Scripts): SetFlashlight(GameObject), ToggleFlashlight() -> SetActive, icon alpha 1/0.4. Local only, no RPC.
+- GTA6CameraEffects (on PlayerCamera) upgraded 2026-09-29: step bob, strafe tilt, breathing, landing dip, sprint FOV kick (fields renamed). User: OK.
+- New FlashlightSway.cs (Assets/Scripts) goes on Spotlight inside the prefab: local only (IsMine), aim follows PlayerCamera with lag, shake by speed, rare flicker.
