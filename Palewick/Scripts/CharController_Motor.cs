@@ -22,6 +22,8 @@ public class CharController_Motor : MonoBehaviourPun
     public float jumpCooldown = 0.35f;
     public float jumpBufferTime = 0.2f;
     [HideInInspector] public bool isSprinting;
+    [HideInInspector] public bool gyroEnabled;
+    [HideInInspector] public float gyroSensitivity = 1f;
     private bool autoRun;
     private CharacterController controller;
     private float verticalVelocity;
@@ -84,6 +86,33 @@ public class CharController_Motor : MonoBehaviourPun
     {
         SetAutoRun(!autoRun);
     }
+    public void SetGyro(bool on, float sensitivity)
+    {
+        gyroEnabled = on && SystemInfo.supportsGyroscope;
+        gyroSensitivity = Mathf.Clamp(sensitivity, 0.2f, 3f);
+        if (SystemInfo.supportsGyroscope)
+        {
+            Input.gyro.enabled = gyroEnabled;
+        }
+    }
+    private void ApplyGyro()
+    {
+        if (!gyroEnabled)
+        {
+            return;
+        }
+        Vector3 r = Input.gyro.rotationRateUnbiased;
+        float k = Mathf.Rad2Deg * Time.deltaTime * gyroSensitivity;
+        float yaw = -r.x;
+        float pitch = r.y;
+        if (Screen.orientation == ScreenOrientation.LandscapeRight)
+        {
+            yaw = r.x;
+            pitch = -r.y;
+        }
+        yawInput += yaw * k;
+        pitchInput += pitch * k;
+    }
     public void Jump()
     {
         if (!IsLocal)
@@ -109,10 +138,28 @@ public class CharController_Motor : MonoBehaviourPun
         RaycastHit hit;
         return verticalVelocity <= 0.5f && Physics.SphereCast(origin, r, Vector3.down, out hit, down, ~0, QueryTriggerInteraction.Ignore);
     }
+    private void OnDisable()
+    {
+        if (gyroEnabled && SystemInfo.supportsGyroscope)
+        {
+            Input.gyro.enabled = false;
+        }
+    }
+    private void OnEnable()
+    {
+        if (gyroEnabled && SystemInfo.supportsGyroscope)
+        {
+            Input.gyro.enabled = true;
+        }
+    }
     private void Start()
     {
         controller = GetComponent<CharacterController>();
         touchLookSensitivity = PlayerPrefs.GetFloat("TouchSensitivity", 0.15f);
+        if (IsLocal)
+        {
+            SetGyro(PlayerPrefs.GetInt("pw_gyro", 0) == 1, PlayerPrefs.GetFloat("pw_gyrosens", 1f));
+        }
         if (animator == null)
         {
             animator = GetComponent<Animator>();
@@ -172,6 +219,7 @@ public class CharController_Motor : MonoBehaviourPun
                 isSprinting = true;
             }
         }
+        ApplyGyro();
         Vector2 analog = new Vector2(rawStrafe, rawMove);
         analogMagnitude = analog.magnitude;
         if (analogMagnitude > 1f)

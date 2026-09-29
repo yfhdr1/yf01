@@ -30,6 +30,8 @@ public class PauseMenuPUBG : MonoBehaviour
     private const string Vol3dKey = "pw_3dsound";
     private const string VibDamageKey = "pw_vibdamage";
     private const string VibMonsterKey = "pw_vibmonster";
+    private const string GyroKey = "pw_gyro";
+    private const string GyroSensKey = "pw_gyrosens";
     private const float OpenTime = 0.25f;
     private const float CloseTime = 0.18f;
     private const float RowHeight = 84f;
@@ -523,7 +525,10 @@ public class PauseMenuPUBG : MonoBehaviour
         SegRow(c, "row_preset", null, Opts("sens_", 4), SensPresetIndex, v => { if (v < 3) { SetSensitivity(SensPresets[v]); } }, null);
         Section(c, "sec_camsens");
         SliderRow(c, "row_freelook", 0.05f, 0.5f, 0.0075f, () => sensValue, SetSensitivity, v => Mathf.RoundToInt(v / SensDefault * 100f) + "%");
-        BottomButton(Bottom(), "reset", "hint_reset_sens", () => SetSensitivity(SensDefault));
+        Section(c, "sec_gyro");
+        SegRow(c, "row_gyro", "hint_gyro", OffOn(), () => PlayerPrefs.GetInt(GyroKey, 0), v => { SaveInt(GyroKey, v); ApplyGyro(); }, v => v == 0 || SystemInfo.supportsGyroscope);
+        SliderRow(c, "row_gyrosens", 0.2f, 3f, 0.1f, () => PlayerPrefs.GetFloat(GyroSensKey, 1f), v => { SaveFloat(GyroSensKey, v); ApplyGyro(); }, v => Mathf.RoundToInt(v * 100f) + "%");
+        BottomButton(Bottom(), "reset", "hint_reset_sens", () => { SaveFloat(GyroSensKey, 1f); ApplyGyro(); SetSensitivity(SensDefault); });
     }
     private void BuildAudioPage()
     {
@@ -1771,6 +1776,19 @@ public class PauseMenuPUBG : MonoBehaviour
         }
         RefreshAll();
     }
+    private void ApplyGyro()
+    {
+        GameObject player = FindLocalPlayer();
+        if (player == null)
+        {
+            return;
+        }
+        CharController_Motor motor = player.GetComponent<CharController_Motor>();
+        if (motor != null)
+        {
+            motor.SetGyro(PlayerPrefs.GetInt(GyroKey, 0) == 1, PlayerPrefs.GetFloat(GyroSensKey, 1f));
+        }
+    }
     private void SetVolume(float value)
     {
         volValue = Mathf.Clamp01(value);
@@ -2286,6 +2304,10 @@ public static class PwText
         { "sens_3", new[] { "Custom", "مخصص", "تایبەت" } },
         { "sec_camsens", new[] { "Camera Sensitivity (Free Look)", "حساسية الكاميرا (نظرة حرة)", "هەستیاریی کامێرا (سەیرکردنی ئازاد)" } },
         { "row_freelook", new[] { "Camera (Free Look)", "الكاميرا (نظرة حرة)", "کامێرا (سەیرکردنی ئازاد)" } },
+        { "sec_gyro", new[] { "Gyroscope", "الجيروسكوب", "جایرۆسکۆپ" } },
+        { "row_gyro", new[] { "Gyroscope", "الجيروسكوب", "جایرۆسکۆپ" } },
+        { "hint_gyro", new[] { "Move the phone to look around.", "حرّك الهاتف لتحريك الكاميرا", "مۆبایلەکە بجوڵێنە بۆ جوڵاندنی کامێرا" } },
+        { "row_gyrosens", new[] { "Gyroscope Sensitivity", "حساسية الجيروسكوب", "هەستیاریی جایرۆسکۆپ" } },
         { "hint_reset_sens", new[] { "Restore the default sensitivity.", "استعادة الحساسية الافتراضية", "گەڕاندنەوەی هەستیاری" } },
         { "sec_volume", new[] { "Volume Controls", "عناصر التحكم بمستوى الصوت", "کۆنتڕۆڵی دەنگ" } },
         { "row_master", new[] { "Master", "الرئيسي", "گشتی" } },
