@@ -709,15 +709,12 @@ public class ChatSystem : MonoBehaviour, IOnEventCallback
         {
             Stretch(t.rectTransform, Vector2.zero, Vector2.one, new Vector2(54f, 0f), new Vector2(-12f, top + 2f));
         }
-        if (floating)
+        if (!floating)
         {
-            Outline o = t.gameObject.AddComponent<Outline>();
-            o.effectColor = new Color(0f, 0f, 0f, 0.85f);
-            o.effectDistance = new Vector2(1.6f, -1.6f);
+            Shadow sh = t.gameObject.AddComponent<Shadow>();
+            sh.effectColor = new Color(0f, 0f, 0f, 0.7f);
+            sh.effectDistance = new Vector2(2f, -2f);
         }
-        Shadow sh = t.gameObject.AddComponent<Shadow>();
-        sh.effectColor = new Color(0f, 0f, 0f, floating ? 0.9f : 0.7f);
-        sh.effectDistance = new Vector2(2f, -2f);
         return row.gameObject;
     }
     private void LateUpdate()
