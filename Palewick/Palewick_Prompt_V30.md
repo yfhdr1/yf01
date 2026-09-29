@@ -287,3 +287,4 @@ PlayerHealth الجديد وEnemyAI (IsDead) انلصقوا بالمشروع، �
 - AutoRunBtn replaced SprintBtn (SprintButton.cs deleted). PlayerSetup wires AutoRunButton.playerMotor. Door button = InteractButton wired by PlayerSetup to PlayerInteraction.OnInteractButtonPressed (hidden until near a door).
 - NEVER write "when done tell me 'done'" at the end of steps. The user always applies the code; just give the next step.
 - Chat: ChatSystem supports editor-built layout via Palewick/Create Chat In Canvas (Editor/ChatBuilder.cs); runtime Wire() binds to existing ChatRoot children by name.
+- Status 2026-09-30: Minimap (editor-built) OK, AutoRun OK, Chat in Canvas + horror icons OK, Door button OK (PlayerInteraction proximity scan a0f3304). Project cleanup done (unused scripts, old editor tools, stray folders). NEXT: gyro, then PUBG-style lobby + lobby chat.
