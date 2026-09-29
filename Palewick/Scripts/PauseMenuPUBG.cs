@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Text;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.SceneManagement;
@@ -19,30 +20,37 @@ public class PauseMenuPUBG : MonoBehaviour
     private const string StyleKey = "pw_style";
     private const string BlindKey = "pw_cb";
     private const string FpsCounterKey = "pw_fpscounter";
+    private const string PingKey = "pw_pingcounter";
     private const string TransUiKey = "pw_transui";
     private const string CamMotionKey = "pw_cammotion";
     private const string SwayKey = "pw_sway";
     private const string MenuSoundKey = "pw_menusound";
+    private const string LayoutKey = "pw_layout";
+    private const string LangKey = "pw_lang";
+    private const string Vol3dKey = "pw_3dsound";
+    private const string VibDamageKey = "pw_vibdamage";
+    private const string VibMonsterKey = "pw_vibmonster";
     private const float OpenTime = 0.25f;
     private const float CloseTime = 0.18f;
     private const float RowHeight = 84f;
     private const float SegHeight = 56f;
+    private const float SensDefault = 0.15f;
     private static readonly string[] LevelKeys = { "low", "medium", "high", "ultra", "ultimate" };
     private static readonly string[] LevelNames = { "SMOOTH", "BALANCED", "HD", "ULTRA", "ULTIMATE" };
-    private static readonly string[] LevelTitles = { "Smooth", "Balanced", "HD", "Ultra", "Ultimate" };
-    private static readonly string[] TabTitles = { "Account", "Basic", "Graphics", "Sensitivity", "Audio" };
-    private static readonly string[] SubTitles = { "Match Info", "Basic Settings", "Graphics", "Camera", "Sound" };
-    private static readonly string[] StyleTitles = { "Classic", "Colorful", "Realistic", "Soft", "Movie" };
+    private static readonly string[] VolKeys = { "pw_vol_steps", "pw_vol_monsters", "pw_vol_effects", "pw_vol_others" };
     private static readonly float[,] StyleValues = { { 0f, 0f, 0f }, { 25f, 8f, 0f }, { -10f, 12f, -5f }, { -5f, -15f, 6f }, { -25f, 20f, -10f } };
-    private static readonly string[] BlindTitles = { "Normal", "Deuteranopia", "Protanopia", "Tritanopia" };
     private static readonly float[,] BlindMatrix = { { 100f, 0f, 0f, 0f, 100f, 0f, 0f, 0f, 100f }, { 80f, 20f, 0f, 0f, 70f, 30f, 0f, 20f, 80f }, { 60f, 40f, 0f, 20f, 80f, 0f, 0f, 20f, 80f }, { 95f, 5f, 0f, 0f, 85f, 15f, 0f, 45f, 55f } };
     private static readonly int[] FpsOptions = { 30, 45, 60, 90, 120, 144, 165, 185 };
     private static readonly int[] ResSteps = { 720, 1080, 1440 };
     private static readonly float[] SensPresets = { 0.08f, 0.15f, 0.3f };
+    private static readonly string[] StyleTitles = { "Classic", "Colorful", "Realistic", "Soft", "Movie" };
+    private static readonly string[] BlindTitles = { "Normal", "Deuteranopia", "Protanopia", "Tritanopia" };
     private static int nativeLong;
     private static int nativeShort;
     private static int currentSlot = 1;
     private static int lastTab = 2;
+    private static int lang;
+    [SerializeField] private Font rtlFont;
     private PostProcessLayer ppLayer;
     private PostProcessVolume ppVolume;
     private int appliedFxSlot = -1;
@@ -55,24 +63,29 @@ public class PauseMenuPUBG : MonoBehaviour
     private readonly float[] baseMixer = new float[9];
     private float fxTimer;
     private float infoTimer;
+    private float audioTimer;
     private float flickerTimer = 3f;
+    private float monsterPulse;
+    private int lastHealth = -1;
+    private PlayerHealth localHealth;
     private GameObject pausePanel;
     private CanvasGroup panelGroup;
     private RectTransform boxRect;
     private RectTransform root;
+    private RectTransform popup;
     private Coroutine animRoutine;
-    private readonly List<GameObject> pageRoots = new List<GameObject>();
-    private readonly List<GameObject> bottomBars = new List<GameObject>();
-    private readonly List<Button> tabButtons = new List<Button>();
+    private Button pauseButton;
+    private readonly List<PageInfo> pageInfos = new List<PageInfo>();
     private readonly List<Image> tabFills = new List<Image>();
     private readonly List<Image> tabBars = new List<Image>();
     private readonly List<Text> tabTexts = new List<Text>();
     private readonly List<System.Action> refreshers = new List<System.Action>();
     private readonly List<System.Action> liveRefreshers = new List<System.Action>();
     private readonly List<int> resValues = new List<int>();
-    private Text subTabText;
+    private readonly Dictionary<AudioSource, Vector4> audioBase = new Dictionary<AudioSource, Vector4>();
+    private readonly Dictionary<RectTransform, Vector4[]> hudOriginal = new Dictionary<RectTransform, Vector4[]>();
     private Text titleText;
-    private Text fpsCounter;
+    private Text hudCounter;
     private Font uiFont;
     private Sprite grungeSprite;
     private Sprite vignetteSprite;
@@ -110,6 +123,17 @@ public class PauseMenuPUBG : MonoBehaviour
         public Image line;
         public Text text;
     }
+    private class PageInfo
+    {
+        public GameObject container;
+        public GameObject strip;
+        public GameObject bottom;
+        public readonly List<GameObject> subs = new List<GameObject>();
+        public readonly List<Image> subFills = new List<Image>();
+        public readonly List<Image> subLines = new List<Image>();
+        public readonly List<Text> subTexts = new List<Text>();
+        public int currentSub;
+    }
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     private static void ApplySavedOnLaunch()
     {
@@ -119,6 +143,7 @@ public class PauseMenuPUBG : MonoBehaviour
     }
     private void Start()
     {
+        lang = Mathf.Clamp(PlayerPrefs.GetInt(LangKey, 0), 0, 2);
         baseAmbient = RenderSettings.ambientLight;
         pausePanel = FindChild(transform, "PausePanel");
         if (pausePanel != null)
@@ -144,7 +169,7 @@ public class PauseMenuPUBG : MonoBehaviour
                 brightnessOverlay.raycastTarget = false;
             }
         }
-        sensValue = PlayerPrefs.GetFloat(SensKey, 0.15f);
+        sensValue = PlayerPrefs.GetFloat(SensKey, SensDefault);
         volValue = PlayerPrefs.GetFloat(AudioKey, 1f);
         brightValue = PlayerPrefs.GetFloat(BrightKey, 1f);
         AudioListener.volume = volValue;
@@ -153,11 +178,54 @@ public class PauseMenuPUBG : MonoBehaviour
         resValues.Clear();
         resValues.AddRange(ResOptions());
         ApplyDisplay(SavedRes(), SupportedFps(PlayerPrefs.GetInt(FpsKey, 60)));
-        BindButton(FindButtonInParent("PauseButton"), TogglePause);
+        GameObject pb = FindChild(transform.parent, "PauseButton");
+        pauseButton = pb != null ? pb.GetComponent<Button>() : null;
+        BindButton(pauseButton, TogglePause);
+        Text anyText = GetComponentInChildren<Text>(true);
+        uiFont = anyText != null && anyText.font != null ? anyText.font : Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        grungeSprite = MakeGrungeSprite();
+        vignetteSprite = MakeVignetteSprite();
         BuildMenu();
-        BuildFpsCounter();
+        BuildHudCounter();
+        ApplyControlLayout();
         ApplyTransparentUi();
         RefreshAll();
+    }
+    private void RebuildMenu()
+    {
+        if (root != null)
+        {
+            Destroy(root.gameObject);
+            root = null;
+        }
+        popup = null;
+        pageInfos.Clear();
+        tabFills.Clear();
+        tabBars.Clear();
+        tabTexts.Clear();
+        refreshers.Clear();
+        liveRefreshers.Clear();
+        for (int i = buttonBindings.Count - 1; i >= 0; i--)
+        {
+            if (buttonBindings[i].Key != pauseButton)
+            {
+                if (buttonBindings[i].Key != null)
+                {
+                    buttonBindings[i].Key.onClick.RemoveListener(buttonBindings[i].Value);
+                }
+                buttonBindings.RemoveAt(i);
+            }
+        }
+        for (int i = 0; i < sliderBindings.Count; i++)
+        {
+            if (sliderBindings[i].Key != null)
+            {
+                sliderBindings[i].Key.onValueChanged.RemoveListener(sliderBindings[i].Value);
+            }
+        }
+        sliderBindings.Clear();
+        BuildMenu();
+        SelectTab(currentTab);
     }
     private void BuildMenu()
     {
@@ -165,10 +233,6 @@ public class PauseMenuPUBG : MonoBehaviour
         {
             return;
         }
-        Text anyText = GetComponentInChildren<Text>(true);
-        uiFont = anyText != null && anyText.font != null ? anyText.font : Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        grungeSprite = MakeGrungeSprite();
-        vignetteSprite = MakeVignetteSprite();
         foreach (Transform child in boxRect)
         {
             child.gameObject.SetActive(false);
@@ -193,7 +257,7 @@ public class PauseMenuPUBG : MonoBehaviour
         boxImg.color = Color.white;
         root = NewRect("PwRoot", boxRect);
         Stretch(root, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
-        Image vig = AddImage(NewRect("Vignette", root), new Color(1f, 1f, 1f, 1f));
+        Image vig = AddImage(NewRect("Vignette", root), Color.white);
         vig.sprite = vignetteSprite;
         Stretch(vig.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
         Image side = AddImage(NewRect("SideBar", root), new Color(0.03f, 0.028f, 0.03f, 0.96f));
@@ -202,14 +266,8 @@ public class PauseMenuPUBG : MonoBehaviour
         Stretch(sideEdge.rectTransform, Vector2.zero, new Vector2(0f, 1f), Vector2.zero, new Vector2(2f, 0f));
         Image topLine = AddImage(NewRect("TopLine", root), new Color(0.22f, 0.2f, 0.2f, 1f));
         Stretch(topLine.rectTransform, new Vector2(0.02f, 1f), new Vector2(0.81f, 1f), new Vector2(0f, -94f), new Vector2(0f, -92f));
-        Image sub = AddImage(NewRect("SubTab", root), new Color(0.2f, 0.18f, 0.18f, 1f));
-        Place(sub.rectTransform, new Vector2(0.02f, 1f), new Vector2(0f, 1f), new Vector2(0f, -16f), new Vector2(300f, 74f));
-        Image subLine = AddImage(NewRect("SubTabLine", sub.rectTransform), bloodBright);
-        Stretch(subLine.rectTransform, Vector2.zero, new Vector2(1f, 0f), Vector2.zero, new Vector2(0f, 4f));
-        subTabText = MakeText(sub.rectTransform, "", 30, TextAnchor.MiddleCenter, bone, true);
-        Stretch(subTabText.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
-        titleText = MakeText(root, "SETTINGS", 40, TextAnchor.MiddleRight, bone, true);
-        Place(titleText.rectTransform, Vector2.one, Vector2.one, new Vector2(-112f, -8f), new Vector2(340f, 86f));
+        titleText = MakeText(root, D("title"), 40, TextAnchor.MiddleRight, bone, true);
+        Place(titleText.rectTransform, Vector2.one, Vector2.one, new Vector2(-112f, -8f), new Vector2(360f, 86f));
         Image closeImg = AddImage(NewRect("CloseX", root), new Color(1f, 1f, 1f, 0.001f));
         closeImg.raycastTarget = true;
         Place(closeImg.rectTransform, Vector2.one, Vector2.one, new Vector2(-16f, -8f), new Vector2(86f, 86f));
@@ -218,24 +276,27 @@ public class PauseMenuPUBG : MonoBehaviour
         Text x = MakeText(closeImg.rectTransform, "X", 58, TextAnchor.MiddleCenter, bone, false);
         Stretch(x.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
         BindButton(close, () => SetPaused(false));
-        for (int i = 0; i < TabTitles.Length; i++)
+        string[] tabKeys = { "tab_account", "tab_basic", "tab_graphics", "tab_controls", "tab_sens", "tab_audio", "tab_lang" };
+        for (int i = 0; i < tabKeys.Length; i++)
         {
-            BuildTab(i);
+            BuildTab(i, tabKeys[i]);
         }
         BuildAccountPage();
         BuildBasicPage();
         BuildGraphicsPage();
+        BuildControlsPage();
         BuildSensitivityPage();
         BuildAudioPage();
+        BuildLanguagePage();
     }
-    private void BuildTab(int i)
+    private void BuildTab(int i, string key)
     {
-        RectTransform rt = NewRect("Tab" + TabTitles[i], root);
-        float top = -104f - i * 92f;
+        RectTransform rt = NewRect("Tab" + i, root);
+        float top = -104f - i * 90f;
         rt.anchorMin = new Vector2(0.83f, 1f);
         rt.anchorMax = new Vector2(1f, 1f);
         rt.pivot = new Vector2(0.5f, 1f);
-        rt.offsetMin = new Vector2(2f, top - 88f);
+        rt.offsetMin = new Vector2(2f, top - 86f);
         rt.offsetMax = new Vector2(0f, top);
         Image fill = AddImage(rt, new Color(0f, 0f, 0f, 0.001f));
         fill.raycastTarget = true;
@@ -247,122 +308,354 @@ public class PauseMenuPUBG : MonoBehaviour
         Stretch(bar.rectTransform, Vector2.zero, new Vector2(0f, 1f), Vector2.zero, new Vector2(8f, 0f));
         Image line = AddImage(NewRect("Line", rt), new Color(0.16f, 0.15f, 0.15f, 1f));
         Stretch(line.rectTransform, Vector2.zero, new Vector2(1f, 0f), new Vector2(14f, 0f), new Vector2(-14f, 2f));
-        Text t = MakeText(rt, TabTitles[i], 30, TextAnchor.MiddleRight, ash, false);
-        Stretch(t.rectTransform, Vector2.zero, Vector2.one, new Vector2(20f, 0f), new Vector2(-24f, 0f));
+        Text t = MakeText(rt, D(key), 29, TextAnchor.MiddleRight, ash, false);
+        Stretch(t.rectTransform, Vector2.zero, Vector2.one, new Vector2(16f, 0f), new Vector2(-22f, 0f));
         int index = i;
         BindButton(b, () => SelectTab(index));
-        tabButtons.Add(b);
         tabFills.Add(fill);
         tabBars.Add(bar);
         tabTexts.Add(t);
     }
-    private RectTransform NewPage(string name)
+    private RectTransform[] NewPage(string name, string[] subKeys)
     {
-        RectTransform page = NewRect("Page" + name, root);
-        Stretch(page, new Vector2(0.02f, 0f), new Vector2(0.81f, 1f), new Vector2(0f, 104f), new Vector2(0f, -106f));
-        Image hit = AddImage(page, new Color(0f, 0f, 0f, 0.001f));
-        hit.raycastTarget = true;
-        page.gameObject.AddComponent<RectMask2D>();
-        RectTransform content = NewRect("Content", page);
-        content.anchorMin = new Vector2(0f, 1f);
-        content.anchorMax = new Vector2(1f, 1f);
-        content.pivot = new Vector2(0.5f, 1f);
-        content.offsetMin = Vector2.zero;
-        content.offsetMax = Vector2.zero;
-        VerticalLayoutGroup v = content.gameObject.AddComponent<VerticalLayoutGroup>();
-        v.spacing = 4f;
-        v.childControlWidth = true;
-        v.childControlHeight = true;
-        v.childForceExpandWidth = true;
-        v.childForceExpandHeight = false;
-        v.padding = new RectOffset(0, 0, 0, 20);
-        ContentSizeFitter fit = content.gameObject.AddComponent<ContentSizeFitter>();
-        fit.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-        ScrollRect sr = page.gameObject.AddComponent<ScrollRect>();
-        sr.content = content;
-        sr.viewport = page;
-        sr.horizontal = false;
-        sr.vertical = true;
-        sr.movementType = ScrollRect.MovementType.Elastic;
-        sr.scrollSensitivity = 30f;
-        pageRoots.Add(page.gameObject);
+        PageInfo info = new PageInfo();
+        RectTransform container = NewRect("Page" + name, root);
+        Stretch(container, new Vector2(0.02f, 0f), new Vector2(0.81f, 1f), new Vector2(0f, 104f), new Vector2(0f, -106f));
+        info.container = container.gameObject;
+        RectTransform strip = NewRect("Strip" + name, root);
+        Stretch(strip, new Vector2(0.02f, 1f), new Vector2(0.81f, 1f), new Vector2(0f, -92f), new Vector2(0f, -14f));
+        info.strip = strip.gameObject;
+        RectTransform[] contents = new RectTransform[subKeys.Length];
+        for (int s = 0; s < subKeys.Length; s++)
+        {
+            RectTransform tab = NewRect("Sub" + s, strip);
+            Place(tab, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(s * 304f, 0f), new Vector2(300f, 74f));
+            Image fill = AddImage(tab, new Color(0.2f, 0.18f, 0.18f, 1f));
+            fill.raycastTarget = true;
+            Image line = AddImage(NewRect("Line", tab), bloodBright);
+            Stretch(line.rectTransform, Vector2.zero, new Vector2(1f, 0f), Vector2.zero, new Vector2(0f, 4f));
+            Text t = MakeText(tab, D(subKeys[s]), 28, TextAnchor.MiddleCenter, bone, true);
+            Stretch(t.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            if (s < subKeys.Length - 1)
+            {
+                Image sep = AddImage(NewRect("Sep", tab), new Color(0.3f, 0.28f, 0.28f, 1f));
+                Place(sep.rectTransform, new Vector2(1f, 0.5f), new Vector2(0f, 0.5f), new Vector2(1f, 0f), new Vector2(2f, 40f));
+            }
+            Button b = tab.gameObject.AddComponent<Button>();
+            b.transition = Selectable.Transition.None;
+            int pageIndex = pageInfos.Count;
+            int subIndex = s;
+            BindButton(b, () => SelectSub(pageIndex, subIndex));
+            info.subFills.Add(fill);
+            info.subLines.Add(line);
+            info.subTexts.Add(t);
+            RectTransform page = NewRect("Scroll" + s, container);
+            Stretch(page, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            Image hit = AddImage(page, new Color(0f, 0f, 0f, 0.001f));
+            hit.raycastTarget = true;
+            page.gameObject.AddComponent<RectMask2D>();
+            RectTransform content = NewRect("Content", page);
+            content.anchorMin = new Vector2(0f, 1f);
+            content.anchorMax = new Vector2(1f, 1f);
+            content.pivot = new Vector2(0.5f, 1f);
+            content.offsetMin = Vector2.zero;
+            content.offsetMax = Vector2.zero;
+            VerticalLayoutGroup v = content.gameObject.AddComponent<VerticalLayoutGroup>();
+            v.spacing = 4f;
+            v.childControlWidth = true;
+            v.childControlHeight = true;
+            v.childForceExpandWidth = true;
+            v.childForceExpandHeight = false;
+            v.padding = new RectOffset(0, 0, 0, 20);
+            ContentSizeFitter fit = content.gameObject.AddComponent<ContentSizeFitter>();
+            fit.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+            ScrollRect sr = page.gameObject.AddComponent<ScrollRect>();
+            sr.content = content;
+            sr.viewport = page;
+            sr.horizontal = false;
+            sr.vertical = true;
+            sr.movementType = ScrollRect.MovementType.Elastic;
+            sr.scrollSensitivity = 30f;
+            info.subs.Add(page.gameObject);
+            contents[s] = content;
+        }
         RectTransform bottom = NewRect("Bottom" + name, root);
         Stretch(bottom, new Vector2(0.02f, 0f), new Vector2(0.81f, 0f), new Vector2(0f, 16f), new Vector2(0f, 88f));
-        bottomBars.Add(bottom.gameObject);
-        return content;
+        info.bottom = bottom.gameObject;
+        pageInfos.Add(info);
+        return contents;
     }
-    private RectTransform Bottom(int page)
+    private RectTransform Bottom()
     {
-        return bottomBars[page].GetComponent<RectTransform>();
+        return pageInfos[pageInfos.Count - 1].bottom.GetComponent<RectTransform>();
     }
     private void BuildAccountPage()
     {
-        RectTransform c = NewPage("Account");
-        Section(c, "Player");
-        InfoRow(c, "Player Name", "", () => string.IsNullOrEmpty(PhotonNetwork.NickName) ? "Guest" : PhotonNetwork.NickName);
-        Section(c, "Connection");
-        InfoRow(c, "Server", "Photon region used for this match.", ServerText);
-        InfoRow(c, "Room", "Players currently in this match.", RoomText);
-        BottomButton(Bottom(0), "Leave Match", "Leave the match and return to the lobby.", ExitToLobby);
+        RectTransform c = NewPage("Account", new[] { "sub_match" })[0];
+        Section(c, "sec_player");
+        InfoRow(c, "row_name", null, () => Disp(string.IsNullOrEmpty(PhotonNetwork.NickName) ? L("guest") : PhotonNetwork.NickName));
+        Section(c, "sec_connection");
+        InfoRow(c, "row_server", "hint_server", ServerText);
+        InfoRow(c, "row_room", "hint_room", RoomText);
+        BottomButton(Bottom(), "leave", "hint_leave", ExitToLobby);
     }
     private void BuildBasicPage()
     {
-        RectTransform c = NewPage("Basic");
-        Section(c, "HUD");
-        SegRow(c, "Show FPS Counter", "Shows the real frame rate in the corner.", new[] { "Off", "On" }, () => PlayerPrefs.GetInt(FpsCounterKey, 0), v => { SaveInt(FpsCounterKey, v); UpdateFpsCounterVisible(); }, null);
-        SegRow(c, "Transparent UI Mode", "Makes the on-screen buttons see-through.", new[] { "Off", "On" }, () => PlayerPrefs.GetInt(TransUiKey, 0), v => { SaveInt(TransUiKey, v); ApplyTransparentUi(); }, null);
-        Section(c, "Camera");
-        SegRow(c, "Camera Motion", "Realistic head bob, breathing and landing shake.", new[] { "Off", "On" }, () => PlayerPrefs.GetInt(CamMotionKey, 1), v => { SaveInt(CamMotionKey, v); ApplyCameraToggles(); }, null);
-        SegRow(c, "Flashlight Sway", "Flashlight follows the camera with a natural delay.", new[] { "Off", "On" }, () => PlayerPrefs.GetInt(SwayKey, 1), v => { SaveInt(SwayKey, v); ApplyCameraToggles(); }, null);
-        BottomButton(Bottom(1), "Reset", "Restore the default basic settings.", ResetBasic);
+        RectTransform c = NewPage("Basic", new[] { "sub_basic" })[0];
+        Section(c, "sec_hud");
+        SegRow(c, "row_fpscounter", "hint_fpscounter", OffOn(), () => PlayerPrefs.GetInt(FpsCounterKey, 0), v => { SaveInt(FpsCounterKey, v); UpdateHudCounter(); }, null);
+        SegRow(c, "row_transui", "hint_transui", OffOn(), () => PlayerPrefs.GetInt(TransUiKey, 0), v => { SaveInt(TransUiKey, v); ApplyTransparentUi(); }, null);
+        Section(c, "sec_camera");
+        SegRow(c, "row_cammotion", "hint_cammotion", OffOn(), () => PlayerPrefs.GetInt(CamMotionKey, 1), v => { SaveInt(CamMotionKey, v); ApplyCameraToggles(); }, null);
+        SegRow(c, "row_sway", "hint_sway", OffOn(), () => PlayerPrefs.GetInt(SwayKey, 1), v => { SaveInt(SwayKey, v); ApplyCameraToggles(); }, null);
+        BottomButton(Bottom(), "reset", "hint_reset_basic", ResetBasic);
     }
     private void BuildGraphicsPage()
     {
-        RectTransform c = NewPage("Graphics");
-        Section(c, "Graphics Preferences");
-        SegRow(c, "Graphics", "Lower it if the device gets hot or the game becomes choppy.", LevelTitles, () => LevelSlot(PlayerPrefs.GetString(GraphicsKey, LevelKeys[1])), v => SetGraphics(LevelKeys[v]), null);
+        RectTransform c = NewPage("Graphics", new[] { "sub_graphics" })[0];
+        Section(c, "sec_gfxpref");
+        SegRow(c, "row_graphics", "hint_graphics", Opts("lvl_", 5), () => LevelSlot(PlayerPrefs.GetString(GraphicsKey, LevelKeys[1])), v => SetGraphics(LevelKeys[v]), null);
         string[] fpsNames = new string[FpsOptions.Length];
         for (int i = 0; i < FpsOptions.Length; i++)
         {
             fpsNames[i] = FpsOptions[i].ToString();
         }
-        Text fpsLabel = SegRow(c, "Frame Rate", "", fpsNames, () => System.Array.IndexOf(FpsOptions, SupportedFps(PlayerPrefs.GetInt(FpsKey, 60))), v => SetFps(FpsOptions[v]), v => IsFpsSupported(FpsOptions[v]));
-        liveRefreshers.Add(() => fpsLabel.text = LabelText("Frame Rate", (measuredFps > 0 ? "Now " + measuredFps + " FPS. " : "") + "Grey = unsupported."));
+        Text fpsLabel = SegRow(c, "row_fps", null, fpsNames, () => System.Array.IndexOf(FpsOptions, SupportedFps(PlayerPrefs.GetInt(FpsKey, 60))), v => SetFps(FpsOptions[v]), v => IsFpsSupported(FpsOptions[v]));
+        liveRefreshers.Add(() => fpsLabel.text = LabelText(L("row_fps"), string.Format(L("fps_now"), measuredFps)));
         string[] resNames = new string[resValues.Count];
         for (int i = 0; i < resValues.Count; i++)
         {
             resNames[i] = resValues[i] + "P";
         }
-        Text resLabel = SegRow(c, "Resolution", "", resNames, () => resValues.IndexOf(SavedRes()), SetRes, null);
-        liveRefreshers.Add(() => resLabel.text = LabelText("Resolution", "Now " + Mathf.Min(Screen.width, Screen.height) + "P. Lower runs faster."));
-        Section(c, "Advanced Graphics Settings");
-        SegRow(c, "Anti-aliasing", "Smooths jagged edges. Costs performance.", new[] { "Disable", "2x", "4x" }, AaIndex, v => { SaveInt(AaKey, v == 0 ? 0 : (v == 1 ? 2 : 4)); ReapplyQuality(); }, null);
-        SegRow(c, "Shadows", "Real-time shadows from lights.", new[] { "Disable", "Enable" }, () => QualitySettings.shadows == ShadowQuality.Disable ? 0 : 1, v => { SaveInt(ShadowKey, v); ReapplyQuality(); }, null);
-        Section(c, "Graphics Style");
-        SegRow(c, "Style", "Color look of the world. Needs Balanced or higher.", StyleTitles, () => PlayerPrefs.GetInt(StyleKey, 0), v => { SaveInt(StyleKey, v); appliedStyle = -1; UpdatePostFX(); }, v => currentSlot > 0);
-        Section(c, "Parameter Configuration");
-        SliderRow(c, "Brightness", "", 0.5f, 1.5f, 0.05f, () => brightValue, v => { brightValue = v; SaveFloat(BrightKey, v); ApplyBrightness(v); }, v => Mathf.RoundToInt(v * 100f) + "%");
-        Section(c, "Colorblind Mode");
-        SegRow(c, "Mode", "Color filter for color vision deficiency. Needs Balanced or higher.", BlindTitles, () => PlayerPrefs.GetInt(BlindKey, 0), v => { SaveInt(BlindKey, v); appliedBlind = -1; UpdatePostFX(); }, v => currentSlot > 0);
-        BottomButton(Bottom(2), "Reset Graphics", "Restore the default graphics settings.", ResetGraphics);
+        Text resLabel = SegRow(c, "row_res", null, resNames, () => resValues.IndexOf(SavedRes()), SetRes, null);
+        liveRefreshers.Add(() => resLabel.text = LabelText(L("row_res"), string.Format(L("res_now"), Mathf.Min(Screen.width, Screen.height))));
+        Section(c, "sec_adv");
+        SegRow(c, "row_aa", "hint_aa", new[] { D("disable"), "2x", "4x" }, AaIndex, v => { SaveInt(AaKey, v == 0 ? 0 : (v == 1 ? 2 : 4)); ReapplyQuality(); }, null);
+        SegRow(c, "row_shadows", "hint_shadows", new[] { D("disable"), D("enable") }, () => QualitySettings.shadows == ShadowQuality.Disable ? 0 : 1, v => { SaveInt(ShadowKey, v); ReapplyQuality(); }, null);
+        Section(c, "sec_style");
+        SegRow(c, "row_style", "hint_needs", Opts("style_", 5), () => PlayerPrefs.GetInt(StyleKey, 0), v => { SaveInt(StyleKey, v); appliedStyle = -1; UpdatePostFX(); }, v => currentSlot > 0);
+        Section(c, "sec_param");
+        SliderRow(c, "row_bright", 0.5f, 1.5f, 0.05f, () => brightValue, v => { brightValue = v; SaveFloat(BrightKey, v); ApplyBrightness(v); }, v => Mathf.RoundToInt(v * 100f) + "%");
+        Section(c, "sec_blind");
+        SegRow(c, "row_mode", "hint_needs", Opts("blind_", 4), () => PlayerPrefs.GetInt(BlindKey, 0), v => { SaveInt(BlindKey, v); appliedBlind = -1; UpdatePostFX(); }, v => currentSlot > 0);
+        BottomButton(Bottom(), "reset_gfx", "hint_reset_gfx", ResetGraphics);
+    }
+    private void BuildControlsPage()
+    {
+        RectTransform c = NewPage("Controls", new[] { "sub_controls" })[0];
+        Section(c, "sec_layout");
+        RectTransform row = NewRect("LayoutRow", c);
+        LayoutElement le = row.gameObject.AddComponent<LayoutElement>();
+        le.preferredHeight = 470f;
+        le.minHeight = 470f;
+        AddImage(row, rowColor);
+        for (int i = 0; i < 2; i++)
+        {
+            BuildLayoutCard(row, i);
+        }
+        BottomButton(Bottom(), "reset", "hint_reset_layout", () => { SaveInt(LayoutKey, 0); ApplyControlLayout(); RefreshAll(); });
+    }
+    private void BuildLayoutCard(RectTransform row, int index)
+    {
+        bool mirrored = index == 1;
+        RectTransform card = NewRect("Card" + index, row);
+        card.anchorMin = new Vector2(0.03f + index * 0.36f, 0f);
+        card.anchorMax = new Vector2(0.33f + index * 0.36f, 1f);
+        card.offsetMin = new Vector2(0f, 24f);
+        card.offsetMax = new Vector2(0f, -24f);
+        Image border = AddImage(card, segBorder);
+        border.raycastTarget = true;
+        Image fill = AddImage(NewRect("Fill", card), new Color(0.13f, 0.12f, 0.12f, 1f));
+        Stretch(fill.rectTransform, Vector2.zero, Vector2.one, new Vector2(4f, 4f), new Vector2(-4f, -4f));
+        Image num = AddImage(NewRect("Num", card), new Color(0.05f, 0.045f, 0.05f, 1f));
+        Place(num.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(18f, -18f), new Vector2(64f, 64f));
+        Text numText = MakeText(num.rectTransform, (index + 1).ToString(), 40, TextAnchor.MiddleCenter, bone, true);
+        Stretch(numText.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+        Text l1 = MakeText(card, D(mirrored ? "lay_b1" : "lay_a1"), 24, TextAnchor.MiddleLeft, bone, false);
+        Stretch(l1.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(96f, -52f), new Vector2(-12f, -16f));
+        Text l2 = MakeText(card, D(mirrored ? "lay_b2" : "lay_a2"), 24, TextAnchor.MiddleLeft, bone, false);
+        Stretch(l2.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(96f, -86f), new Vector2(-12f, -52f));
+        RectTransform prev = NewRect("Preview", card);
+        Stretch(prev, Vector2.zero, Vector2.one, new Vector2(20f, 20f), new Vector2(-20f, -104f));
+        Image left = AddImage(NewRect("Left", prev), new Color(0.2f, 0.19f, 0.19f, 1f));
+        Stretch(left.rectTransform, Vector2.zero, new Vector2(0.5f, 1f), Vector2.zero, new Vector2(-2f, 0f));
+        Image right = AddImage(NewRect("Right", prev), new Color(0.16f, 0.15f, 0.15f, 1f));
+        Stretch(right.rectTransform, new Vector2(0.5f, 0f), Vector2.one, new Vector2(2f, 0f), Vector2.zero);
+        Image stick = AddImage(NewRect("Stick", prev), new Color(0.35f, 0.33f, 0.33f, 1f));
+        Place(stick.rectTransform, new Vector2(mirrored ? 0.75f : 0.25f, 0.35f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(84f, 84f));
+        Image knob = AddImage(NewRect("Knob", stick.rectTransform), bone);
+        Place(knob.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(30f, 30f));
+        for (int b = 0; b < 3; b++)
+        {
+            Image btn = AddImage(NewRect("Btn" + b, prev), new Color(0.45f, 0.06f, 0.08f, 1f));
+            Place(btn.rectTransform, new Vector2(mirrored ? 0.12f + b * 0.1f : 0.68f + b * 0.1f, 0.25f + (b % 2) * 0.2f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(44f, 44f));
+        }
+        Text move = MakeText(prev, D("move"), 24, TextAnchor.MiddleCenter, ash, false);
+        Stretch(move.rectTransform, new Vector2(mirrored ? 0.5f : 0f, 0.72f), new Vector2(mirrored ? 1f : 0.5f, 0.95f), Vector2.zero, Vector2.zero);
+        Text look = MakeText(prev, D("look"), 24, TextAnchor.MiddleCenter, ash, false);
+        Stretch(look.rectTransform, new Vector2(mirrored ? 0f : 0.5f, 0.72f), new Vector2(mirrored ? 0.5f : 1f, 0.95f), Vector2.zero, Vector2.zero);
+        Button button = card.gameObject.AddComponent<Button>();
+        button.transition = Selectable.Transition.None;
+        BindButton(button, () => { SaveInt(LayoutKey, index); ApplyControlLayout(); RefreshAll(); });
+        refreshers.Add(() =>
+        {
+            bool on = PlayerPrefs.GetInt(LayoutKey, 0) == index;
+            border.color = on ? bloodBright : segBorder;
+            numText.color = on ? bloodBright : bone;
+        });
     }
     private void BuildSensitivityPage()
     {
-        RectTransform c = NewPage("Sensitivity");
-        Section(c, "Camera Sensitivity");
-        SegRow(c, "Preset", "Quick sensitivity presets.", new[] { "Low", "Medium", "High" }, SensPresetIndex, v => SetSensitivity(SensPresets[v]), null);
-        SliderRow(c, "Camera (Free Look)", "", 0.05f, 0.5f, 0.01f, () => sensValue, SetSensitivity, v => Mathf.RoundToInt(Mathf.InverseLerp(0.05f, 0.5f, v) * 100f) + "%");
-        BottomButton(Bottom(3), "Reset", "Restore the default sensitivity.", () => SetSensitivity(0.15f));
+        RectTransform c = NewPage("Sensitivity", new[] { "sub_camera" })[0];
+        Section(c, "sec_overall");
+        SegRow(c, "row_preset", null, Opts("sens_", 4), SensPresetIndex, v => { if (v < 3) { SetSensitivity(SensPresets[v]); } }, null);
+        Section(c, "sec_camsens");
+        SliderRow(c, "row_freelook", 0.05f, 0.5f, 0.0075f, () => sensValue, SetSensitivity, v => Mathf.RoundToInt(v / SensDefault * 100f) + "%");
+        BottomButton(Bottom(), "reset", "hint_reset_sens", () => SetSensitivity(SensDefault));
     }
     private void BuildAudioPage()
     {
-        RectTransform c = NewPage("Audio");
-        Section(c, "Sound");
-        SliderRow(c, "Master Volume", "", 0f, 1f, 0.05f, () => volValue, SetVolume, v => Mathf.RoundToInt(v * 100f) + "%");
-        SegRow(c, "Game Sound in Menu", "Keep hearing the game while this menu is open.", new[] { "Off", "On" }, () => PlayerPrefs.GetInt(MenuSoundKey, 1), v => { SaveInt(MenuSoundKey, v); ApplyMenuSound(); }, null);
-        BottomButton(Bottom(4), "Reset", "Restore the default sound settings.", () => { SetVolume(1f); SaveInt(MenuSoundKey, 1); ApplyMenuSound(); RefreshAll(); });
+        RectTransform[] subs = NewPage("Audio", new[] { "sub_sound", "sub_haptic" });
+        RectTransform c = subs[0];
+        Section(c, "sec_volume");
+        SliderRow(c, "row_master", 0f, 1f, 0.05f, () => volValue, SetVolume, v => Mathf.RoundToInt(v * 100f) + "%");
+        string[] volRows = { "row_vol_steps", "row_vol_monsters", "row_vol_effects", "row_vol_others" };
+        for (int i = 0; i < VolKeys.Length; i++)
+        {
+            string key = VolKeys[i];
+            SliderRow(c, volRows[i], 0f, 1f, 0.05f, () => PlayerPrefs.GetFloat(key, 1f), v => { SaveFloat(key, v); audioTimer = 0f; }, v => Mathf.RoundToInt(v * 100f) + "%");
+        }
+        Section(c, "sec_soundopt");
+        SegRow(c, "row_3d", "hint_3d", OffOn(), () => PlayerPrefs.GetInt(Vol3dKey, 1), v => { SaveInt(Vol3dKey, v); audioTimer = 0f; }, null);
+        SegRow(c, "row_menusound", "hint_menusound", OffOn(), () => PlayerPrefs.GetInt(MenuSoundKey, 1), v => { SaveInt(MenuSoundKey, v); ApplyMenuSound(); }, null);
+        RectTransform h = subs[1];
+        Section(h, "sec_vibration");
+        SegRow(h, "row_vibdamage", "hint_vibdamage", OffOn(), () => PlayerPrefs.GetInt(VibDamageKey, 1), v => SaveInt(VibDamageKey, v), null);
+        SegRow(h, "row_vibmonster", "hint_vibmonster", OffOn(), () => PlayerPrefs.GetInt(VibMonsterKey, 0), v => SaveInt(VibMonsterKey, v), null);
+        BottomButton(Bottom(), "reset", "hint_reset_audio", ResetAudio);
     }
-    private void Section(RectTransform content, string title)
+    private void BuildLanguagePage()
+    {
+        RectTransform[] subs = NewPage("Language", new[] { "sub_language", "sub_network" });
+        RectTransform c = subs[0];
+        Section(c, "sec_uilang");
+        Text labelText;
+        RectTransform row = Row(c, "row_uilang", null, out labelText);
+        Image border = AddImage(NewRect("Selector", row), segBorder);
+        border.raycastTarget = true;
+        Place(border.rectTransform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-16f, 0f), new Vector2(360f, SegHeight));
+        Image fill = AddImage(NewRect("Fill", border.rectTransform), segFill);
+        Stretch(fill.rectTransform, Vector2.zero, Vector2.one, new Vector2(2f, 2f), new Vector2(-2f, -2f));
+        Text cur = MakeText(border.rectTransform, LangName(lang), 27, TextAnchor.MiddleCenter, bone, false);
+        Stretch(cur.rectTransform, Vector2.zero, Vector2.one, new Vector2(10f, 0f), new Vector2(-60f, 0f));
+        Text icon = MakeText(border.rectTransform, ">", 34, TextAnchor.MiddleCenter, bloodBright, true);
+        Stretch(icon.rectTransform, new Vector2(1f, 0f), Vector2.one, new Vector2(-56f, 0f), Vector2.zero);
+        Button open = border.gameObject.AddComponent<Button>();
+        open.transition = Selectable.Transition.ColorTint;
+        BindButton(open, OpenLanguagePopup);
+        RectTransform n = subs[1];
+        Section(n, "sec_connection");
+        InfoRow(n, "row_server", "hint_server", ServerText);
+        InfoRow(n, "row_room", "hint_room", RoomText);
+        SegRow(n, "row_pingcounter", "hint_pingcounter", OffOn(), () => PlayerPrefs.GetInt(PingKey, 0), v => { SaveInt(PingKey, v); UpdateHudCounter(); }, null);
+    }
+    private void OpenLanguagePopup()
+    {
+        if (popup != null)
+        {
+            Destroy(popup.gameObject);
+        }
+        popup = NewRect("LangPopup", root);
+        Stretch(popup, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+        Image dim = AddImage(popup, new Color(0f, 0f, 0f, 0.78f));
+        dim.raycastTarget = true;
+        Image box = AddImage(NewRect("Box", popup), new Color(0.1f, 0.095f, 0.1f, 1f));
+        box.sprite = grungeSprite;
+        box.type = Image.Type.Tiled;
+        box.color = new Color(1.6f, 1.5f, 1.5f, 1f);
+        Place(box.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(900f, 470f));
+        Image head = AddImage(NewRect("Head", box.rectTransform), new Color(0.07f, 0.065f, 0.07f, 1f));
+        Stretch(head.rectTransform, new Vector2(0f, 1f), Vector2.one, new Vector2(0f, -80f), Vector2.zero);
+        Image headBar = AddImage(NewRect("Bar", head.rectTransform), bloodBright);
+        Stretch(headBar.rectTransform, Vector2.zero, new Vector2(0f, 1f), Vector2.zero, new Vector2(8f, 0f));
+        Text title = MakeText(head.rectTransform, D("row_uilang"), 32, TextAnchor.MiddleLeft, bloodBright, true);
+        Stretch(title.rectTransform, Vector2.zero, Vector2.one, new Vector2(28f, 0f), new Vector2(-90f, 0f));
+        Image xImg = AddImage(NewRect("X", head.rectTransform), new Color(1f, 1f, 1f, 0.001f));
+        xImg.raycastTarget = true;
+        Place(xImg.rectTransform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-8f, 0f), new Vector2(72f, 72f));
+        Text xText = MakeText(xImg.rectTransform, "X", 46, TextAnchor.MiddleCenter, bone, false);
+        Stretch(xText.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+        Button xb = xImg.gameObject.AddComponent<Button>();
+        xb.transition = Selectable.Transition.None;
+        BindButton(xb, ClosePopup);
+        int picked = lang;
+        Image[] borders = new Image[3];
+        for (int i = 0; i < 3; i++)
+        {
+            Image b = AddImage(NewRect("Lang" + i, box.rectTransform), segBorder);
+            b.raycastTarget = true;
+            Place(b.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(40f + i * 280f, -120f), new Vector2(260f, 76f));
+            Image f = AddImage(NewRect("Fill", b.rectTransform), segFill);
+            Stretch(f.rectTransform, Vector2.zero, Vector2.one, new Vector2(3f, 3f), new Vector2(-3f, -3f));
+            Text t = MakeText(b.rectTransform, LangName(i), 30, TextAnchor.MiddleCenter, bone, true);
+            Stretch(t.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            Button btn = b.gameObject.AddComponent<Button>();
+            btn.transition = Selectable.Transition.None;
+            borders[i] = b;
+            int index = i;
+            BindButton(btn, () =>
+            {
+                picked = index;
+                for (int k = 0; k < 3; k++)
+                {
+                    borders[k].color = k == picked ? bloodBright : segBorder;
+                }
+            });
+        }
+        for (int k = 0; k < 3; k++)
+        {
+            borders[k].color = k == picked ? bloodBright : segBorder;
+        }
+        Image ok = AddImage(NewRect("Ok", box.rectTransform), blood);
+        ok.raycastTarget = true;
+        Place(ok.rectTransform, new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-40f, 36f), new Vector2(260f, 84f));
+        Text okText = MakeText(ok.rectTransform, D("ok"), 32, TextAnchor.MiddleCenter, Color.white, true);
+        Stretch(okText.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+        Button okb = ok.gameObject.AddComponent<Button>();
+        okb.transition = Selectable.Transition.ColorTint;
+        BindButton(okb, () =>
+        {
+            ClosePopup();
+            if (picked != lang)
+            {
+                lang = picked;
+                SaveInt(LangKey, lang);
+                RebuildMenu();
+                RefreshAll();
+            }
+        });
+    }
+    private void ClosePopup()
+    {
+        if (popup != null)
+        {
+            Destroy(popup.gameObject);
+            popup = null;
+        }
+    }
+    private static string LangName(int i)
+    {
+        if (i == 1)
+        {
+            return PwRtl.Visual("العربية");
+        }
+        if (i == 2)
+        {
+            return PwRtl.Visual("کوردی");
+        }
+        return "English";
+    }
+    private void Section(RectTransform content, string key)
     {
         RectTransform rt = NewRect("Section", content);
         LayoutElement le = rt.gameObject.AddComponent<LayoutElement>();
@@ -371,19 +664,18 @@ public class PauseMenuPUBG : MonoBehaviour
         AddImage(rt, sectionColor);
         Image bar = AddImage(NewRect("Bar", rt), blood);
         Stretch(bar.rectTransform, Vector2.zero, new Vector2(0f, 1f), Vector2.zero, new Vector2(6f, 0f));
-        Text t = MakeText(rt, title, 30, TextAnchor.MiddleLeft, bone, true);
+        Text t = MakeText(rt, D(key), 30, TextAnchor.MiddleLeft, bone, true);
         Stretch(t.rectTransform, Vector2.zero, Vector2.one, new Vector2(22f, 0f), Vector2.zero);
     }
-    private RectTransform Row(RectTransform content, string label, string hint, out Text labelText)
+    private RectTransform Row(RectTransform content, string labelKey, string hintKey, out Text labelText)
     {
         RectTransform rt = NewRect("Row", content);
         LayoutElement le = rt.gameObject.AddComponent<LayoutElement>();
         le.preferredHeight = RowHeight;
         le.minHeight = RowHeight;
         AddImage(rt, rowColor);
-        labelText = MakeText(rt, LabelText(label, hint), 28, TextAnchor.MiddleLeft, bone, false);
-        labelText.supportRichText = true;
-        labelText.horizontalOverflow = HorizontalWrapMode.Wrap;
+        labelText = MakeText(rt, LabelText(L(labelKey), hintKey == null ? null : L(hintKey)), 28, TextAnchor.MiddleLeft, bone, false);
+        labelText.horizontalOverflow = lang == 0 ? HorizontalWrapMode.Wrap : HorizontalWrapMode.Overflow;
         labelText.lineSpacing = 0.9f;
         Stretch(labelText.rectTransform, Vector2.zero, Vector2.one, new Vector2(22f, 0f), Vector2.zero);
         return rt;
@@ -392,26 +684,32 @@ public class PauseMenuPUBG : MonoBehaviour
     {
         if (string.IsNullOrEmpty(hint))
         {
-            return label;
+            return Disp(label);
         }
-        return label + "  <size=20><color=#8A8480>(" + hint + ")</color></size>";
+        if (lang == 0)
+        {
+            return label + "  <size=20><color=#8A8480>(" + hint + ")</color></size>";
+        }
+        return "<size=20><color=#8A8480>" + PwRtl.Visual("(" + hint + ")") + "</color></size>  " + PwRtl.Visual(label);
     }
-    private Text SegRow(RectTransform content, string label, string hint, string[] options, System.Func<int> getSel, System.Action<int> onPick, System.Func<int, bool> isEnabled)
+    private Text SegRow(RectTransform content, string labelKey, string hintKey, string[] options, System.Func<int> getSel, System.Action<int> onPick, System.Func<int, bool> isEnabled)
     {
         Text labelText;
-        RectTransform row = Row(content, label, hint, out labelText);
+        RectTransform row = Row(content, labelKey, hintKey, out labelText);
         float w = options.Length > 5 ? 128f : (options.Length > 3 ? 168f : 176f);
         float total = w * options.Length;
         labelText.rectTransform.offsetMax = new Vector2(-(total + 40f), 0f);
         RectTransform group = NewRect("Options", row);
         Place(group, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-16f, 0f), new Vector2(total, SegHeight));
         Seg[] segs = new Seg[options.Length];
-        for (int i = 0; i < options.Length; i++)
+        int n = options.Length;
+        for (int i = 0; i < n; i++)
         {
+            int slot = lang == 0 ? i : n - 1 - i;
             RectTransform b = NewRect("Opt" + i, group);
-            b.anchorMin = new Vector2(i / (float)options.Length, 0f);
-            b.anchorMax = new Vector2((i + 1) / (float)options.Length, 1f);
-            b.offsetMin = new Vector2(i == 0 ? 0f : -1f, 0f);
+            b.anchorMin = new Vector2(slot / (float)n, 0f);
+            b.anchorMax = new Vector2((slot + 1) / (float)n, 1f);
+            b.offsetMin = new Vector2(slot == 0 ? 0f : -1f, 0f);
             b.offsetMax = Vector2.zero;
             Image border = AddImage(b, segBorder);
             border.raycastTarget = true;
@@ -453,10 +751,10 @@ public class PauseMenuPUBG : MonoBehaviour
         });
         return labelText;
     }
-    private void SliderRow(RectTransform content, string label, string hint, float min, float max, float step, System.Func<float> getVal, System.Action<float> setVal, System.Func<float, string> format)
+    private void SliderRow(RectTransform content, string labelKey, float min, float max, float step, System.Func<float> getVal, System.Action<float> setVal, System.Func<float, string> format)
     {
         Text labelText;
-        RectTransform row = Row(content, label, hint, out labelText);
+        RectTransform row = Row(content, labelKey, null, out labelText);
         labelText.rectTransform.offsetMax = new Vector2(-810f, 0f);
         RectTransform plus = SquareButton(row, "+", new Vector2(-16f, 0f));
         RectTransform area = NewRect("SliderArea", row);
@@ -511,50 +809,77 @@ public class PauseMenuPUBG : MonoBehaviour
         b.transition = Selectable.Transition.ColorTint;
         return border.rectTransform;
     }
-    private void InfoRow(RectTransform content, string label, string hint, System.Func<string> value)
+    private void InfoRow(RectTransform content, string labelKey, string hintKey, System.Func<string> value)
     {
         Text labelText;
-        RectTransform row = Row(content, label, hint, out labelText);
+        RectTransform row = Row(content, labelKey, hintKey, out labelText);
         Text v = MakeText(row, "", 28, TextAnchor.MiddleRight, bone, true);
-        v.supportRichText = true;
-        Stretch(v.rectTransform, new Vector2(0.45f, 0f), Vector2.one, Vector2.zero, new Vector2(-24f, 0f));
+        Stretch(v.rectTransform, new Vector2(0.55f, 0f), Vector2.one, Vector2.zero, new Vector2(-24f, 0f));
         liveRefreshers.Add(() => v.text = value());
     }
-    private void BottomButton(RectTransform bar, string label, string hint, UnityAction action)
+    private void BottomButton(RectTransform bar, string labelKey, string hintKey, UnityAction action)
     {
         Image border = AddImage(NewRect("BottomBtn", bar), new Color(0.6f, 0.57f, 0.55f, 1f));
         border.raycastTarget = true;
-        Place(border.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), Vector2.zero, new Vector2(260f, 66f));
+        Place(border.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), Vector2.zero, new Vector2(300f, 66f));
         Image fill = AddImage(NewRect("Fill", border.rectTransform), new Color(0.06f, 0.055f, 0.06f, 1f));
         Stretch(fill.rectTransform, Vector2.zero, Vector2.one, new Vector2(2f, 2f), new Vector2(-2f, -2f));
-        Text t = MakeText(border.rectTransform, label, 28, TextAnchor.MiddleCenter, bone, false);
+        Text t = MakeText(border.rectTransform, D(labelKey), 27, TextAnchor.MiddleCenter, bone, false);
         Stretch(t.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
         Button b = border.gameObject.AddComponent<Button>();
         b.transition = Selectable.Transition.ColorTint;
         BindButton(b, action);
-        Text h = MakeText(bar, "(" + hint + ")", 22, TextAnchor.MiddleLeft, ash, false);
-        Stretch(h.rectTransform, Vector2.zero, Vector2.one, new Vector2(280f, 0f), Vector2.zero);
+        Text h = MakeText(bar, Disp("(" + L(hintKey) + ")"), 22, TextAnchor.MiddleLeft, ash, false);
+        Stretch(h.rectTransform, Vector2.zero, Vector2.one, new Vector2(320f, 0f), Vector2.zero);
+    }
+    private static string[] OffOn()
+    {
+        return new[] { D("off"), D("on") };
+    }
+    private static string[] Opts(string prefix, int count)
+    {
+        string[] r = new string[count];
+        for (int i = 0; i < count; i++)
+        {
+            r[i] = D(prefix + i);
+        }
+        return r;
+    }
+    private static string L(string key)
+    {
+        string[] v;
+        if (PwText.Table.TryGetValue(key, out v))
+        {
+            return v[Mathf.Clamp(lang, 0, v.Length - 1)];
+        }
+        return key;
+    }
+    private static string D(string key)
+    {
+        return Disp(L(key));
+    }
+    private static string Disp(string s)
+    {
+        return lang == 0 ? s : PwRtl.Visual(s);
     }
     private string ServerText()
     {
         if (!PhotonNetwork.IsConnected)
         {
-            return "<color=#8A8480>Offline</color>";
+            return "<color=#8A8480>" + D("offline") + "</color>";
         }
         string region = string.IsNullOrEmpty(PhotonNetwork.CloudRegion) ? "-" : PhotonNetwork.CloudRegion.Replace("/*", "").ToUpper();
-        if (region == "EU")
-        {
-            region = "Europe";
-        }
+        string regionText = region == "EU" ? D("europe") : region;
         int ping = PhotonNetwork.GetPing();
         string col = ping < 120 ? "#3FBF5F" : (ping < 200 ? "#E0B040" : "#E04040");
-        return region + "   <color=" + col + ">" + ping + " ms</color>";
+        string pingText = "<color=" + col + ">" + ping + " ms</color>";
+        return lang == 0 ? regionText + "   " + pingText : pingText + "   " + regionText;
     }
     private string RoomText()
     {
         if (!PhotonNetwork.InRoom || PhotonNetwork.CurrentRoom == null)
         {
-            return "<color=#8A8480>Not in a room</color>";
+            return "<color=#8A8480>" + D("noroom") + "</color>";
         }
         return PhotonNetwork.CurrentRoom.Name + "   " + PhotonNetwork.CurrentRoom.PlayerCount + " / " + PhotonNetwork.CurrentRoom.MaxPlayers;
     }
@@ -567,12 +892,12 @@ public class PauseMenuPUBG : MonoBehaviour
     {
         for (int i = 0; i < SensPresets.Length; i++)
         {
-            if (Mathf.Abs(SensPresets[i] - sensValue) < 0.005f)
+            if (Mathf.Abs(SensPresets[i] - sensValue) < 0.004f)
             {
                 return i;
             }
         }
-        return -1;
+        return 3;
     }
     private static void SaveInt(string key, int v)
     {
@@ -601,9 +926,24 @@ public class PauseMenuPUBG : MonoBehaviour
         SaveInt(TransUiKey, 0);
         SaveInt(CamMotionKey, 1);
         SaveInt(SwayKey, 1);
-        UpdateFpsCounterVisible();
+        UpdateHudCounter();
         ApplyTransparentUi();
         ApplyCameraToggles();
+        RefreshAll();
+    }
+    private void ResetAudio()
+    {
+        SetVolume(1f);
+        for (int i = 0; i < VolKeys.Length; i++)
+        {
+            SaveFloat(VolKeys[i], 1f);
+        }
+        SaveInt(Vol3dKey, 1);
+        SaveInt(MenuSoundKey, 1);
+        SaveInt(VibDamageKey, 1);
+        SaveInt(VibMonsterKey, 0);
+        ApplyMenuSound();
+        audioTimer = 0f;
         RefreshAll();
     }
     private void ResetGraphics()
@@ -626,26 +966,40 @@ public class PauseMenuPUBG : MonoBehaviour
         UpdatePostFX();
         RefreshAll();
     }
-    private void BuildFpsCounter()
+    private void BuildHudCounter()
     {
         if (transform.parent == null)
         {
             return;
         }
         RectTransform rt = NewRect("FpsCounter", transform.parent);
-        Place(rt, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(24f, -12f), new Vector2(260f, 44f));
-        fpsCounter = MakeText(rt, "", 26, TextAnchor.MiddleLeft, new Color(0.35f, 1f, 0.45f, 1f), true);
-        Stretch(fpsCounter.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
-        Outline o = fpsCounter.gameObject.AddComponent<Outline>();
+        Place(rt, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(24f, -12f), new Vector2(260f, 70f));
+        hudCounter = MakeText(rt, "", 26, TextAnchor.UpperLeft, new Color(0.35f, 1f, 0.45f, 1f), true);
+        Stretch(hudCounter.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+        Outline o = hudCounter.gameObject.AddComponent<Outline>();
         o.effectColor = new Color(0f, 0f, 0f, 0.8f);
-        UpdateFpsCounterVisible();
+        UpdateHudCounter();
     }
-    private void UpdateFpsCounterVisible()
+    private void UpdateHudCounter()
     {
-        if (fpsCounter != null)
+        if (hudCounter == null)
         {
-            fpsCounter.transform.parent.gameObject.SetActive(PlayerPrefs.GetInt(FpsCounterKey, 0) == 1);
+            return;
         }
+        bool fps = PlayerPrefs.GetInt(FpsCounterKey, 0) == 1;
+        bool ping = PlayerPrefs.GetInt(PingKey, 0) == 1;
+        hudCounter.transform.parent.gameObject.SetActive(fps || ping);
+        string text = "";
+        if (fps)
+        {
+            text = measuredFps + " FPS";
+        }
+        if (ping)
+        {
+            int p = PhotonNetwork.IsConnected ? PhotonNetwork.GetPing() : 0;
+            text += (text.Length > 0 ? "\n" : "") + p + " ms";
+        }
+        hudCounter.text = text;
     }
     private void ApplyTransparentUi()
     {
@@ -670,6 +1024,46 @@ public class PauseMenuPUBG : MonoBehaviour
                 g = child.gameObject.AddComponent<CanvasGroup>();
             }
             g.alpha = a;
+        }
+    }
+    private void ApplyControlLayout()
+    {
+        if (transform.parent == null)
+        {
+            return;
+        }
+        bool mirrored = PlayerPrefs.GetInt(LayoutKey, 0) == 1;
+        foreach (Transform child in transform.parent)
+        {
+            if (IsHudExcluded(child) || child.name == "DeathPanel")
+            {
+                continue;
+            }
+            RectTransform rt = child as RectTransform;
+            if (rt == null)
+            {
+                continue;
+            }
+            Vector4[] orig;
+            if (!hudOriginal.TryGetValue(rt, out orig))
+            {
+                orig = new[] { new Vector4(rt.anchorMin.x, rt.anchorMin.y, rt.anchorMax.x, rt.anchorMax.y), new Vector4(rt.pivot.x, rt.pivot.y, rt.anchoredPosition.x, rt.anchoredPosition.y) };
+                hudOriginal.Add(rt, orig);
+            }
+            if (mirrored)
+            {
+                rt.anchorMin = new Vector2(1f - orig[0].z, orig[0].y);
+                rt.anchorMax = new Vector2(1f - orig[0].x, orig[0].w);
+                rt.pivot = new Vector2(1f - orig[1].x, orig[1].y);
+                rt.anchoredPosition = new Vector2(-orig[1].z, orig[1].w);
+            }
+            else
+            {
+                rt.anchorMin = new Vector2(orig[0].x, orig[0].y);
+                rt.anchorMax = new Vector2(orig[0].z, orig[0].w);
+                rt.pivot = new Vector2(orig[1].x, orig[1].y);
+                rt.anchoredPosition = new Vector2(orig[1].z, orig[1].w);
+            }
         }
     }
     private bool IsHudExcluded(Transform child)
@@ -702,6 +1096,135 @@ public class PauseMenuPUBG : MonoBehaviour
     {
         AudioListener.pause = isOpen && PlayerPrefs.GetInt(MenuSoundKey, 1) == 0;
     }
+    private void ApplyAudioMix()
+    {
+        float[] vols = new float[VolKeys.Length];
+        for (int i = 0; i < VolKeys.Length; i++)
+        {
+            vols[i] = PlayerPrefs.GetFloat(VolKeys[i], 1f);
+        }
+        bool use3d = PlayerPrefs.GetInt(Vol3dKey, 1) == 1;
+        HashSet<AudioSource> steps = new HashSet<AudioSource>();
+        FootstepSoundController[] feet = FindObjectsByType<FootstepSoundController>(FindObjectsInactive.Exclude);
+        for (int i = 0; i < feet.Length; i++)
+        {
+            if (feet[i] != null && feet[i].audioSource != null)
+            {
+                steps.Add(feet[i].audioSource);
+            }
+        }
+        AudioSource[] sources = FindObjectsByType<AudioSource>(FindObjectsInactive.Exclude);
+        for (int i = 0; i < sources.Length; i++)
+        {
+            AudioSource src = sources[i];
+            if (src == null)
+            {
+                continue;
+            }
+            float mult;
+            if (steps.Contains(src))
+            {
+                mult = vols[0];
+            }
+            else if (src.GetComponentInParent<EnemyAI>() != null)
+            {
+                mult = vols[1];
+            }
+            else
+            {
+                mult = vols[2];
+            }
+            PhotonView pv = src.GetComponentInParent<PhotonView>();
+            if (pv != null && !pv.IsMine && pv.CompareTag("Player"))
+            {
+                mult *= vols[3];
+            }
+            Vector4 rec;
+            if (!audioBase.TryGetValue(src, out rec))
+            {
+                rec = new Vector4(src.volume, src.volume, src.spatialBlend, src.spatialBlend);
+            }
+            if (!Mathf.Approximately(src.volume, rec.y))
+            {
+                rec.x = src.volume;
+            }
+            if (!Mathf.Approximately(src.spatialBlend, rec.w))
+            {
+                rec.z = src.spatialBlend;
+            }
+            float vol = rec.x * mult;
+            float blend = use3d ? rec.z : 0f;
+            src.volume = vol;
+            src.spatialBlend = blend;
+            rec.y = src.volume;
+            rec.w = src.spatialBlend;
+            audioBase[src] = rec;
+        }
+        List<AudioSource> dead = null;
+        foreach (KeyValuePair<AudioSource, Vector4> pair in audioBase)
+        {
+            if (pair.Key == null)
+            {
+                if (dead == null)
+                {
+                    dead = new List<AudioSource>();
+                }
+                dead.Add(pair.Key);
+            }
+        }
+        if (dead != null)
+        {
+            for (int i = 0; i < dead.Count; i++)
+            {
+                audioBase.Remove(dead[i]);
+            }
+        }
+    }
+    private void UpdateHaptics()
+    {
+        if (localHealth == null)
+        {
+            GameObject player = FindLocalPlayer();
+            if (player != null)
+            {
+                localHealth = player.GetComponent<PlayerHealth>();
+                lastHealth = localHealth != null ? localHealth.currentHealth : -1;
+            }
+        }
+        if (localHealth != null)
+        {
+            int hp = localHealth.currentHealth;
+            if (lastHealth >= 0 && hp < lastHealth && PlayerPrefs.GetInt(VibDamageKey, 1) == 1)
+            {
+                Vibrate();
+            }
+            lastHealth = hp;
+        }
+        if (PlayerPrefs.GetInt(VibMonsterKey, 0) == 1 && localHealth != null && !localHealth.IsDead)
+        {
+            monsterPulse -= 0.25f;
+            if (monsterPulse <= 0f)
+            {
+                EnemyAI[] enemies = FindObjectsByType<EnemyAI>(FindObjectsInactive.Exclude);
+                Vector3 p = localHealth.transform.position;
+                for (int i = 0; i < enemies.Length; i++)
+                {
+                    if (enemies[i] != null && (enemies[i].transform.position - p).sqrMagnitude < 36f)
+                    {
+                        Vibrate();
+                        monsterPulse = 1.5f;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    private static void Vibrate()
+    {
+#if UNITY_ANDROID || UNITY_IOS
+        Handheld.Vibrate();
+#endif
+    }
     private void Update()
     {
         fxTimer -= Time.unscaledDeltaTime;
@@ -711,6 +1234,12 @@ public class PauseMenuPUBG : MonoBehaviour
             UpdatePostFX();
             ApplyCameraToggles();
         }
+        audioTimer -= Time.unscaledDeltaTime;
+        if (audioTimer <= 0f)
+        {
+            audioTimer = 0.5f;
+            ApplyAudioMix();
+        }
         frameCount++;
         frameTime += Time.unscaledDeltaTime;
         if (frameTime >= 0.5f)
@@ -718,27 +1247,35 @@ public class PauseMenuPUBG : MonoBehaviour
             measuredFps = Mathf.RoundToInt(frameCount / frameTime);
             frameCount = 0;
             frameTime = 0f;
-            if (fpsCounter != null && fpsCounter.gameObject.activeInHierarchy)
-            {
-                fpsCounter.text = measuredFps + " FPS";
-            }
+            UpdateHudCounter();
         }
-        if (isOpen)
+        infoTimer -= Time.unscaledDeltaTime;
+        if (infoTimer <= 0f)
         {
-            infoTimer -= Time.unscaledDeltaTime;
-            if (infoTimer <= 0f)
+            infoTimer = 0.25f;
+            UpdateHaptics();
+            if (isOpen)
             {
-                infoTimer = 0.5f;
                 for (int i = 0; i < liveRefreshers.Count; i++)
                 {
                     liveRefreshers[i]();
                 }
             }
+        }
+        if (isOpen)
+        {
             Flicker();
         }
         if (Input.GetKeyDown(KeyCode.Escape))
         {
-            TogglePause();
+            if (popup != null)
+            {
+                ClosePopup();
+            }
+            else
+            {
+                TogglePause();
+            }
         }
     }
     private void Flicker()
@@ -761,23 +1298,16 @@ public class PauseMenuPUBG : MonoBehaviour
     }
     private void SelectTab(int index)
     {
-        currentTab = Mathf.Clamp(index, 0, TabTitles.Length - 1);
+        currentTab = Mathf.Clamp(index, 0, pageInfos.Count - 1);
         lastTab = currentTab;
-        for (int i = 0; i < pageRoots.Count; i++)
+        for (int i = 0; i < pageInfos.Count; i++)
         {
             bool on = i == currentTab;
-            pageRoots[i].SetActive(on);
-            bottomBars[i].SetActive(on);
-            if (on)
-            {
-                ScrollRect sr = pageRoots[i].GetComponent<ScrollRect>();
-                if (sr != null)
-                {
-                    sr.verticalNormalizedPosition = 1f;
-                }
-            }
+            pageInfos[i].container.SetActive(on);
+            pageInfos[i].strip.SetActive(on);
+            pageInfos[i].bottom.SetActive(on);
         }
-        for (int i = 0; i < tabButtons.Count; i++)
+        for (int i = 0; i < tabFills.Count; i++)
         {
             bool on = i == currentTab;
             tabFills[i].color = on ? new Color(0.55f, 0.06f, 0.08f, 1f) : new Color(0f, 0f, 0f, 0.001f);
@@ -785,11 +1315,36 @@ public class PauseMenuPUBG : MonoBehaviour
             tabTexts[i].color = on ? Color.white : ash;
             tabTexts[i].fontStyle = on ? FontStyle.Bold : FontStyle.Normal;
         }
-        if (subTabText != null)
+        if (currentTab < pageInfos.Count)
         {
-            subTabText.text = SubTitles[currentTab];
+            SelectSub(currentTab, pageInfos[currentTab].currentSub);
         }
         RefreshAll();
+    }
+    private void SelectSub(int page, int sub)
+    {
+        if (page < 0 || page >= pageInfos.Count)
+        {
+            return;
+        }
+        PageInfo info = pageInfos[page];
+        info.currentSub = Mathf.Clamp(sub, 0, info.subs.Count - 1);
+        for (int i = 0; i < info.subs.Count; i++)
+        {
+            bool on = i == info.currentSub;
+            info.subs[i].SetActive(on);
+            info.subFills[i].color = on ? new Color(0.24f, 0.2f, 0.2f, 1f) : new Color(0f, 0f, 0f, 0.001f);
+            info.subLines[i].enabled = on;
+            info.subTexts[i].color = on ? bone : ash;
+            if (on)
+            {
+                ScrollRect sr = info.subs[i].GetComponent<ScrollRect>();
+                if (sr != null)
+                {
+                    sr.verticalNormalizedPosition = 1f;
+                }
+            }
+        }
     }
     private void SetGraphics(string level)
     {
@@ -798,31 +1353,6 @@ public class PauseMenuPUBG : MonoBehaviour
         ApplyGraphicsLevel(level);
         appliedStyle = -1;
         appliedBlind = -1;
-    }
-    private void ReapplyQuality()
-    {
-        ApplyGraphicsLevel(PlayerPrefs.GetString(GraphicsKey, LevelKeys[1]));
-        appliedFxSlot = -1;
-        appliedStyle = -1;
-        appliedBlind = -1;
-    }
-    private static void ApplyAdvanced()
-    {
-        int aa = PlayerPrefs.GetInt(AaKey, -1);
-        if (aa >= 0)
-        {
-            QualitySettings.antiAliasing = aa;
-        }
-        int sh = PlayerPrefs.GetInt(ShadowKey, -1);
-        if (sh == 0)
-        {
-            QualitySettings.shadows = ShadowQuality.Disable;
-        }
-        else if (sh == 1 && QualitySettings.shadows == ShadowQuality.Disable)
-        {
-            QualitySettings.shadows = ShadowQuality.HardOnly;
-            QualitySettings.shadowDistance = Mathf.Max(QualitySettings.shadowDistance, 25f);
-        }
     }
     private static int LevelSlot(string level)
     {
@@ -1009,6 +1539,31 @@ public class PauseMenuPUBG : MonoBehaviour
             }
         }
         Application.targetFrameRate = fps;
+    }
+    private void ReapplyQuality()
+    {
+        ApplyGraphicsLevel(PlayerPrefs.GetString(GraphicsKey, LevelKeys[1]));
+        appliedFxSlot = -1;
+        appliedStyle = -1;
+        appliedBlind = -1;
+    }
+    private static void ApplyAdvanced()
+    {
+        int aa = PlayerPrefs.GetInt(AaKey, -1);
+        if (aa >= 0)
+        {
+            QualitySettings.antiAliasing = aa;
+        }
+        int sh = PlayerPrefs.GetInt(ShadowKey, -1);
+        if (sh == 0)
+        {
+            QualitySettings.shadows = ShadowQuality.Disable;
+        }
+        else if (sh == 1 && QualitySettings.shadows == ShadowQuality.Disable)
+        {
+            QualitySettings.shadows = ShadowQuality.HardOnly;
+            QualitySettings.shadowDistance = Mathf.Max(QualitySettings.shadowDistance, 25f);
+        }
     }
     private void SetFps(int fps)
     {
@@ -1572,5 +2127,357 @@ public class PauseMenuPUBG : MonoBehaviour
             }
         }
         PlayerPrefs.Save();
+    }
+}
+public static class PwText
+{
+    public static readonly Dictionary<string, string[]> Table = new Dictionary<string, string[]>
+    {
+        { "title", new[] { "SETTINGS", "الإعدادات", "ڕێکخستن" } },
+        { "tab_account", new[] { "Account", "الحساب", "هەژمار" } },
+        { "tab_basic", new[] { "Basic", "الأساسية", "سەرەکی" } },
+        { "tab_graphics", new[] { "Graphics", "الرسومات", "گرافیک" } },
+        { "tab_controls", new[] { "Controls", "مفاتيح التحكم", "کۆنترۆل" } },
+        { "tab_sens", new[] { "Sensitivity", "الحساسية", "هەستیاری" } },
+        { "tab_audio", new[] { "Audio", "الصوت", "دەنگ" } },
+        { "tab_lang", new[] { "Language & Network", "اللغة والشبكة", "زمان و تۆڕ" } },
+        { "sub_match", new[] { "Match Info", "معلومات المباراة", "زانیاری" } },
+        { "sub_basic", new[] { "Basic Settings", "الإعدادات الأساسية", "ڕێکخستنێن سەرەکی" } },
+        { "sub_graphics", new[] { "Graphics", "الرسومات", "گرافیک" } },
+        { "sub_controls", new[] { "Control Layout", "تخطيط التحكم", "شێوازێ کۆنترۆلێ" } },
+        { "sub_camera", new[] { "Camera", "الكاميرا", "کامێرا" } },
+        { "sub_sound", new[] { "Sound Settings", "إعدادات الصوت", "ڕێکخستنێن دەنگی" } },
+        { "sub_haptic", new[] { "Haptics", "الاهتزاز", "لەرزین" } },
+        { "sub_language", new[] { "Language", "اللغة", "زمان" } },
+        { "sub_network", new[] { "Network", "الشبكة", "تۆڕ" } },
+        { "sec_player", new[] { "Player", "اللاعب", "یاریزان" } },
+        { "row_name", new[] { "Player Name", "اسم اللاعب", "ناڤ" } },
+        { "guest", new[] { "Guest", "ضيف", "میڤان" } },
+        { "sec_connection", new[] { "Connection", "الاتصال", "پەیوەندی" } },
+        { "row_server", new[] { "Server", "الخادم", "سێرڤەر" } },
+        { "hint_server", new[] { "Region of this match.", "منطقة هذه المباراة", "ناوچا ڤێ یاریێ" } },
+        { "row_room", new[] { "Room", "الغرفة", "ژوور" } },
+        { "hint_room", new[] { "Players in this match.", "اللاعبون في المباراة", "یاریزانێن ڤێ یاریێ" } },
+        { "offline", new[] { "Offline", "غير متصل", "نە پەیوەستە" } },
+        { "noroom", new[] { "Not in a room", "لست في غرفة", "نە د ژوورێ دایە" } },
+        { "europe", new[] { "Europe", "أوروبا", "ئەورووپا" } },
+        { "leave", new[] { "Leave Match", "مغادرة المباراة", "دەرکەفتن" } },
+        { "hint_leave", new[] { "Leave the match and return to the lobby.", "اخرج من المباراة وارجع إلى الردهة", "ژ یاریێ دەرکەڤە و بزڤڕە لۆبی" } },
+        { "sec_hud", new[] { "HUD", "واجهة اللعب", "ڕووکار" } },
+        { "row_fpscounter", new[] { "Show FPS Counter", "عرض عداد الإطارات", "نیشاندانا FPS" } },
+        { "hint_fpscounter", new[] { "Real frame rate in the corner.", "المعدل الحقيقي في الزاوية", "ڕێژا ڕاستەقینە ل گۆشەیێ" } },
+        { "row_transui", new[] { "Transparent UI Mode", "وضع الواجهة الشفافة", "ڕووکارێ ڕوون" } },
+        { "hint_transui", new[] { "See-through on-screen buttons.", "أزرار شاشة شفافة", "دوگمێن ڕوون" } },
+        { "sec_camera", new[] { "Camera", "الكاميرا", "کامێرا" } },
+        { "row_cammotion", new[] { "Camera Motion", "حركة الكاميرا", "لڤینا کامێرایێ" } },
+        { "hint_cammotion", new[] { "Realistic head bob and breathing.", "اهتزاز الرأس والتنفس", "لڤینا سەری و بێهنێ" } },
+        { "row_sway", new[] { "Flashlight Sway", "تمايل الكشاف", "لڤینا گلۆپێ" } },
+        { "hint_sway", new[] { "Flashlight follows the camera naturally.", "الكشاف يتبع الكاميرا بشكل طبيعي", "گلۆپ دگەل کامێرایێ دچیت" } },
+        { "reset", new[] { "Reset", "إعادة ضبط", "ڤەگەڕاندن" } },
+        { "hint_reset_basic", new[] { "Restore the default basic settings.", "استعادة الإعدادات الأساسية الافتراضية", "ڤەگەڕاندنا ڕێکخستنێن سەرەکی" } },
+        { "sec_gfxpref", new[] { "Graphics Preferences", "تفضيلات الرسومات", "هەلبژارتنێن گرافیکی" } },
+        { "row_graphics", new[] { "Graphics", "الرسومات", "گرافیک" } },
+        { "hint_graphics", new[] { "Lower it if the device gets hot.", "اخفضه إذا سخن الجهاز", "کێم بکە ئەگەر ئامێر گەرم بوو" } },
+        { "lvl_0", new[] { "Smooth", "سلسة", "نەرم" } },
+        { "lvl_1", new[] { "Balanced", "متوازنة", "هاوسەنگ" } },
+        { "lvl_2", new[] { "HD", "عالية الدقة", "HD" } },
+        { "lvl_3", new[] { "Ultra", "فائقة", "ئولترا" } },
+        { "lvl_4", new[] { "Ultimate", "قصوى", "ئەوپەڕ" } },
+        { "row_fps", new[] { "Frame Rate", "معدل الإطارات", "ڕێژا فرەیمان" } },
+        { "fps_now", new[] { "Now {0} FPS. Grey = unsupported.", "الآن {0} FPS. الرمادي غير مدعوم", "نوکە {0} FPS. خۆلەمێشی نینە" } },
+        { "row_res", new[] { "Resolution", "الدقة", "ڕوونی" } },
+        { "res_now", new[] { "Now {0}P. Lower runs faster.", "الآن {0}P. الأقل أسرع", "نوکە {0}P. کێمتر خێراترە" } },
+        { "sec_adv", new[] { "Advanced Graphics Settings", "إعدادات الرسومات المتقدمة", "ڕێکخستنێن پێشکەفتی" } },
+        { "row_aa", new[] { "Anti-aliasing", "تنعيم الحواف", "نەرمکرنا لێڤان" } },
+        { "hint_aa", new[] { "Smooths jagged edges. Costs performance.", "ينعم الحواف ويستهلك الأداء", "لێڤان نەرم دکەت" } },
+        { "disable", new[] { "Disable", "تعطيل", "ناچالاک" } },
+        { "enable", new[] { "Enable", "تفعيل", "چالاک" } },
+        { "row_shadows", new[] { "Shadows", "الظلال", "سێبەر" } },
+        { "hint_shadows", new[] { "Real-time shadows from lights.", "ظلال فورية من الأضواء", "سێبەرێن ڕووناهیان" } },
+        { "sec_style", new[] { "Graphics Style", "نمط الرسوم", "شێوازێ گرافیکی" } },
+        { "row_style", new[] { "Style", "النمط", "شێواز" } },
+        { "hint_needs", new[] { "Needs Balanced or higher.", "يتطلب متوازنة أو أعلى", "پێدڤی ب هاوسەنگ یان زێدەترە" } },
+        { "style_0", new[] { "Classic", "الكلاسيكية", "کلاسیک" } },
+        { "style_1", new[] { "Colorful", "ملون", "ڕەنگین" } },
+        { "style_2", new[] { "Realistic", "واقعي", "ڕاستەقینە" } },
+        { "style_3", new[] { "Soft", "ناعم", "نەرم" } },
+        { "style_4", new[] { "Movie", "الفيلم", "فیلم" } },
+        { "sec_param", new[] { "Parameter Configuration", "تكوين المعايير", "ڕێکخستنا پیڤەران" } },
+        { "row_bright", new[] { "Brightness", "السطوع", "ڕووناهی" } },
+        { "sec_blind", new[] { "Colorblind Mode", "وضع عمى الألوان", "دۆخێ کۆرەڕەنگی" } },
+        { "row_mode", new[] { "Mode", "الوضع", "دۆخ" } },
+        { "blind_0", new[] { "Normal", "عادية", "ئاسایی" } },
+        { "blind_1", new[] { "Deuteranopia", "عمى الأخضر", "کۆرێ کەسک" } },
+        { "blind_2", new[] { "Protanopia", "عمى الأحمر", "کۆرێ سۆر" } },
+        { "blind_3", new[] { "Tritanopia", "عمى الأزرق", "کۆرێ شین" } },
+        { "reset_gfx", new[] { "Reset Graphics", "إعادة ضبط الرسومات", "ڤەگەڕاندنا گرافیکی" } },
+        { "hint_reset_gfx", new[] { "Restore the default graphics settings.", "استعادة إعدادات الرسومات الافتراضية", "ڤەگەڕاندنا ڕێکخستنێن گرافیکی" } },
+        { "sec_layout", new[] { "Control Layout", "تخطيط التحكم", "شێوازێ کۆنترۆلێ" } },
+        { "lay_a1", new[] { "Left: Move", "يسار: حركة", "چەپ: لڤین" } },
+        { "lay_a2", new[] { "Right: Look and buttons", "يمين: الكاميرا والأزرار", "ڕاست: کامێرا و دوگمە" } },
+        { "lay_b1", new[] { "Left: Look and buttons", "يسار: الكاميرا والأزرار", "چەپ: کامێرا و دوگمە" } },
+        { "lay_b2", new[] { "Right: Move", "يمين: حركة", "ڕاست: لڤین" } },
+        { "move", new[] { "Move", "حركة", "لڤین" } },
+        { "look", new[] { "Look", "الكاميرا", "کامێرا" } },
+        { "hint_reset_layout", new[] { "Restore the default control layout.", "استعادة تخطيط التحكم الافتراضي", "ڤەگەڕاندنا شێوازێ کۆنترۆلێ" } },
+        { "sec_overall", new[] { "Overall", "الإجمالي", "گشتی" } },
+        { "row_preset", new[] { "Preset", "الإعداد المسبق", "ئامادەکری" } },
+        { "sens_0", new[] { "Low", "منخفضة", "کێم" } },
+        { "sens_1", new[] { "Medium", "متوسطة", "ناڤنجی" } },
+        { "sens_2", new[] { "High", "مرتفع", "بلند" } },
+        { "sens_3", new[] { "Custom", "مخصص", "تایبەت" } },
+        { "sec_camsens", new[] { "Camera Sensitivity (Free Look)", "حساسية الكاميرا (نظرة حرة)", "هەستیاریا کامێرایێ" } },
+        { "row_freelook", new[] { "Camera (Free Look)", "الكاميرا (نظرة حرة)", "کامێرا (بەرچاڤ)" } },
+        { "hint_reset_sens", new[] { "Restore the default sensitivity.", "استعادة الحساسية الافتراضية", "ڤەگەڕاندنا هەستیاریێ" } },
+        { "sec_volume", new[] { "Volume Controls", "عناصر التحكم بمستوى الصوت", "کۆنترۆلا دەنگی" } },
+        { "row_master", new[] { "Master", "أساسي", "سەرەکی" } },
+        { "row_vol_steps", new[] { "Footsteps", "خطوات الأقدام", "دەنگێ پێیان" } },
+        { "row_vol_monsters", new[] { "Monsters", "الوحوش", "دێو" } },
+        { "row_vol_effects", new[] { "Sound Effects", "المؤثرات الصوتية", "کاریگەریێن دەنگی" } },
+        { "row_vol_others", new[] { "Other Players", "اللاعبون الآخرون", "یاریزانێن دی" } },
+        { "sec_soundopt", new[] { "Sound Options", "خيارات الصوت", "هەلبژارتنێن دەنگی" } },
+        { "row_3d", new[] { "Directional Sound", "الصوت الاتجاهي", "دەنگێ ئاراستەیی" } },
+        { "hint_3d", new[] { "Hear where sounds come from.", "اسمع مصدر الصوت", "بزانە دەنگ ژ کیڤە دهێت" } },
+        { "row_menusound", new[] { "Game Sound in Menu", "صوت اللعبة في القائمة", "دەنگێ یاریێ د لیستێ دا" } },
+        { "hint_menusound", new[] { "Keep hearing the game here.", "استمر بسماع اللعبة", "گوهـ ل یاریێ بیت" } },
+        { "sec_vibration", new[] { "Vibration", "الاهتزاز", "لەرزین" } },
+        { "row_vibdamage", new[] { "Vibrate on Damage", "اهتزاز عند الإصابة", "لەرزین دەمێ بریندار بوون" } },
+        { "hint_vibdamage", new[] { "Phone vibrates when you get hit.", "يهتز الهاتف عند إصابتك", "مۆبایل دلەرزیت" } },
+        { "row_vibmonster", new[] { "Monster Nearby", "وحش قريب", "دێو نێزیکە" } },
+        { "hint_vibmonster", new[] { "Pulse when a monster is close.", "نبض عند اقتراب وحش", "لەرزین دەمێ دێو نێزیک بیت" } },
+        { "hint_reset_audio", new[] { "Restore the default sound settings.", "استعادة إعدادات الصوت الافتراضية", "ڤەگەڕاندنا ڕێکخستنێن دەنگی" } },
+        { "sec_uilang", new[] { "Interface Language", "لغة الواجهة", "زمانێ ڕووکاری" } },
+        { "row_uilang", new[] { "Interface Language", "لغة الواجهة", "زمانێ ڕووکاری" } },
+        { "ok", new[] { "OK", "حسنا", "باشە" } },
+        { "row_pingcounter", new[] { "Show Ping on Screen", "عرض البنغ على الشاشة", "نیشاندانا پینگێ" } },
+        { "hint_pingcounter", new[] { "Live connection delay in ms.", "تأخير الاتصال المباشر", "دواکەفتنا پەیوەندیێ" } },
+        { "off", new[] { "Off", "إيقاف", "ناچالاک" } },
+        { "on", new[] { "On", "تشغيل", "چالاک" } }
+    };
+}
+public static class PwRtl
+{
+    private static Dictionary<char, char[]> forms;
+    private static void Init()
+    {
+        if (forms != null)
+        {
+            return;
+        }
+        forms = new Dictionary<char, char[]>();
+        Add('\u0622', '\uFE81', '\uFE82', '\0', '\0');
+        Add('\u0623', '\uFE83', '\uFE84', '\0', '\0');
+        Add('\u0624', '\uFE85', '\uFE86', '\0', '\0');
+        Add('\u0625', '\uFE87', '\uFE88', '\0', '\0');
+        Add('\u0626', '\uFE89', '\uFE8A', '\uFE8B', '\uFE8C');
+        Add('\u0627', '\uFE8D', '\uFE8E', '\0', '\0');
+        Add('\u0628', '\uFE8F', '\uFE90', '\uFE91', '\uFE92');
+        Add('\u0629', '\uFE93', '\uFE94', '\0', '\0');
+        Add('\u062A', '\uFE95', '\uFE96', '\uFE97', '\uFE98');
+        Add('\u062B', '\uFE99', '\uFE9A', '\uFE9B', '\uFE9C');
+        Add('\u062C', '\uFE9D', '\uFE9E', '\uFE9F', '\uFEA0');
+        Add('\u062D', '\uFEA1', '\uFEA2', '\uFEA3', '\uFEA4');
+        Add('\u062E', '\uFEA5', '\uFEA6', '\uFEA7', '\uFEA8');
+        Add('\u062F', '\uFEA9', '\uFEAA', '\0', '\0');
+        Add('\u0630', '\uFEAB', '\uFEAC', '\0', '\0');
+        Add('\u0631', '\uFEAD', '\uFEAE', '\0', '\0');
+        Add('\u0632', '\uFEAF', '\uFEB0', '\0', '\0');
+        Add('\u0633', '\uFEB1', '\uFEB2', '\uFEB3', '\uFEB4');
+        Add('\u0634', '\uFEB5', '\uFEB6', '\uFEB7', '\uFEB8');
+        Add('\u0635', '\uFEB9', '\uFEBA', '\uFEBB', '\uFEBC');
+        Add('\u0636', '\uFEBD', '\uFEBE', '\uFEBF', '\uFEC0');
+        Add('\u0637', '\uFEC1', '\uFEC2', '\uFEC3', '\uFEC4');
+        Add('\u0638', '\uFEC5', '\uFEC6', '\uFEC7', '\uFEC8');
+        Add('\u0639', '\uFEC9', '\uFECA', '\uFECB', '\uFECC');
+        Add('\u063A', '\uFECD', '\uFECE', '\uFECF', '\uFED0');
+        Add('\u0641', '\uFED1', '\uFED2', '\uFED3', '\uFED4');
+        Add('\u0642', '\uFED5', '\uFED6', '\uFED7', '\uFED8');
+        Add('\u0643', '\uFED9', '\uFEDA', '\uFEDB', '\uFEDC');
+        Add('\u0644', '\uFEDD', '\uFEDE', '\uFEDF', '\uFEE0');
+        Add('\u0645', '\uFEE1', '\uFEE2', '\uFEE3', '\uFEE4');
+        Add('\u0646', '\uFEE5', '\uFEE6', '\uFEE7', '\uFEE8');
+        Add('\u0647', '\uFEE9', '\uFEEA', '\uFEEB', '\uFEEC');
+        Add('\u0648', '\uFEED', '\uFEEE', '\0', '\0');
+        Add('\u0649', '\uFEEF', '\uFEF0', '\0', '\0');
+        Add('\u064A', '\uFEF1', '\uFEF2', '\uFEF3', '\uFEF4');
+        Add('\u067E', '\uFB56', '\uFB57', '\uFB58', '\uFB59');
+        Add('\u0686', '\uFB7A', '\uFB7B', '\uFB7C', '\uFB7D');
+        Add('\u0698', '\uFB8A', '\uFB8B', '\0', '\0');
+        Add('\u06A4', '\uFB6A', '\uFB6B', '\uFB6C', '\uFB6D');
+        Add('\u06A9', '\uFB8E', '\uFB8F', '\uFB90', '\uFB91');
+        Add('\u06AF', '\uFB92', '\uFB93', '\uFB94', '\uFB95');
+        Add('\u06BE', '\uFBAA', '\uFBAB', '\uFBAC', '\uFBAD');
+        Add('\u06C6', '\uFBD9', '\uFBDA', '\0', '\0');
+        Add('\u06CC', '\uFBFC', '\uFBFD', '\uFBFE', '\uFBFF');
+        Add('\u06D5', '\u06D5', '\uFEEA', '\0', '\0');
+    }
+    private static void Add(char c, char iso, char fin, char ini, char med)
+    {
+        forms[c] = new[] { iso, fin, ini, med };
+    }
+    private static int JoinType(char c)
+    {
+        if (c == '\u0640')
+        {
+            return 2;
+        }
+        char[] f;
+        if (forms.TryGetValue(c, out f))
+        {
+            return f[2] != '\0' ? 2 : 1;
+        }
+        return 0;
+    }
+    private static bool IsMark(char c)
+    {
+        return (c >= '\u064B' && c <= '\u065F') || c == '\u0670' || c == '\u200C' || c == '\u200D';
+    }
+    private static char LamAlef(char alef, bool final)
+    {
+        switch (alef)
+        {
+            case '\u0622':
+                return final ? '\uFEF6' : '\uFEF5';
+            case '\u0623':
+                return final ? '\uFEF8' : '\uFEF7';
+            case '\u0625':
+                return final ? '\uFEFA' : '\uFEF9';
+            case '\u0627':
+                return final ? '\uFEFC' : '\uFEFB';
+        }
+        return '\0';
+    }
+    public static string Shape(string input)
+    {
+        Init();
+        StringBuilder clean = new StringBuilder(input.Length);
+        for (int i = 0; i < input.Length; i++)
+        {
+            if (!IsMark(input[i]))
+            {
+                clean.Append(input[i]);
+            }
+        }
+        string s = clean.ToString();
+        StringBuilder sb = new StringBuilder(s.Length);
+        for (int i = 0; i < s.Length; i++)
+        {
+            char c = s[i];
+            char[] f;
+            if (!forms.TryGetValue(c, out f))
+            {
+                sb.Append(c);
+                continue;
+            }
+            bool prevJoins = i > 0 && JoinType(s[i - 1]) == 2;
+            if (c == '\u0644' && i + 1 < s.Length)
+            {
+                char lig = LamAlef(s[i + 1], prevJoins);
+                if (lig != '\0')
+                {
+                    sb.Append(lig);
+                    i++;
+                    continue;
+                }
+            }
+            bool nextJoins = JoinType(c) == 2 && i + 1 < s.Length && JoinType(s[i + 1]) >= 1;
+            int idx = prevJoins ? (nextJoins ? 3 : 1) : (nextJoins ? 2 : 0);
+            char outc = f[idx] != '\0' ? f[idx] : f[0];
+            sb.Append(outc);
+        }
+        return sb.ToString();
+    }
+    private static bool IsRtl(char c)
+    {
+        return (c >= '\u0600' && c <= '\u06FF') || (c >= '\uFB50' && c <= '\uFDFF') || (c >= '\uFE70' && c <= '\uFEFF');
+    }
+    private static char Mirror(char c)
+    {
+        switch (c)
+        {
+            case '(':
+                return ')';
+            case ')':
+                return '(';
+            case '[':
+                return ']';
+            case ']':
+                return '[';
+            case '<':
+                return '>';
+            case '>':
+                return '<';
+        }
+        return c;
+    }
+    public static string Visual(string input)
+    {
+        if (string.IsNullOrEmpty(input))
+        {
+            return input;
+        }
+        string s = Shape(input);
+        int n = s.Length;
+        bool[] ltr = new bool[n];
+        int[] strong = new int[n];
+        for (int i = 0; i < n; i++)
+        {
+            char c = s[i];
+            strong[i] = IsRtl(c) ? 2 : (char.IsLetterOrDigit(c) ? 1 : 0);
+        }
+        for (int i = 0; i < n; i++)
+        {
+            if (strong[i] == 1)
+            {
+                ltr[i] = true;
+                continue;
+            }
+            if (strong[i] == 2)
+            {
+                continue;
+            }
+            int prev = 0;
+            for (int k = i - 1; k >= 0; k--)
+            {
+                if (strong[k] != 0)
+                {
+                    prev = strong[k];
+                    break;
+                }
+            }
+            int next = 0;
+            for (int k = i + 1; k < n; k++)
+            {
+                if (strong[k] != 0)
+                {
+                    next = strong[k];
+                    break;
+                }
+            }
+            ltr[i] = prev == 1 && next == 1;
+        }
+        StringBuilder sb = new StringBuilder(n);
+        int end = n - 1;
+        while (end >= 0)
+        {
+            int start = end;
+            while (start - 1 >= 0 && ltr[start - 1] == ltr[end])
+            {
+                start--;
+            }
+            if (ltr[end])
+            {
+                sb.Append(s, start, end - start + 1);
+            }
+            else
+            {
+                for (int k = end; k >= start; k--)
+                {
+                    sb.Append(Mirror(s[k]));
+                }
+            }
+            end = start - 1;
+        }
+        return sb.ToString();
     }
 }
