@@ -427,7 +427,7 @@ public class PauseMenuPUBG : MonoBehaviour
         PlaceRow(gfxButtons, right, w, h, gap, rowY);
         PlaceRow(fpsButtons, right, w, h, gap, fpsY);
         PlaceRow(resButtons, right, w, h, gap, resY);
-        SizeResText(Mathf.Min(h * 0.4f, w * 0.17f));
+        SizeResText(Mathf.Min(h * 0.6f, w * 0.22f));
         GameObject label = FindChild(page, "Label");
         if (label != null)
         {
