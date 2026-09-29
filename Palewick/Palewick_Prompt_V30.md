@@ -258,3 +258,9 @@ PlayerHealth الجديد وEnemyAI (IsDead) انلصقوا بالمشروع، �
 - FlashlightController.cs (Assets/a.last/Flooded_Grounds/Scripts): SetFlashlight(GameObject), ToggleFlashlight() -> SetActive, icon alpha 1/0.4. Local only, no RPC.
 - GTA6CameraEffects (on PlayerCamera) upgraded 2026-09-29: step bob, strafe tilt, breathing, landing dip, sprint FOV kick (fields renamed). User: OK.
 - New FlashlightSway.cs (Assets/Scripts) goes on Spotlight inside the prefab: local only (IsMine), aim follows PlayerCamera with lag, shake by speed, rare flicker.
+
+## Status 2026-09-29 (device FPS/RES verified on phone)
+- FPS row hides unsupported rates (phone: 30-120 shown, 144 hidden). RES row from Display.main.systemWidth/Height: phone shows 720P/1080P/1220P. Key pw_res (short side), default = highest <= 1080.
+- Phone test: SMOOTH + 120 FPS measured 110, RES label 720P after choosing 720P => real. Uniform RES text (SizeResText h*0.6 / w*0.22), Btn_Blank art.
+- Texture warnings fixed (palewick_splash_raw, transparent_pixel Compression None). Prebake Collision Meshes already on; remaining 13-mesh collision note is a future-deprecation notice, left as is.
+- User declined flashlight shadows / spot angle change.
