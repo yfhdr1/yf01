@@ -326,7 +326,7 @@ public class ChatSystem : MonoBehaviour, IOnEventCallback
         Bind(sendButton, Send);
         UpdateSendLook("");
         ApplyLanguage();
-        SelectTab(1);
+        SelectTab(0);
     }
     private Image MakeTab(RectTransform column, int index, Sprite sprite, out Image mark)
     {
@@ -394,6 +394,10 @@ public class ChatSystem : MonoBehaviour, IOnEventCallback
         if (tab == 1)
         {
             scrollPending = true;
+        }
+        else
+        {
+            quickContent.anchoredPosition = Vector2.zero;
         }
     }
     private void ApplyLanguage()
@@ -468,6 +472,7 @@ public class ChatSystem : MonoBehaviour, IOnEventCallback
         {
             unread = 0;
             badge.SetActive(false);
+            SelectTab(0);
             scrollPending = true;
             openTime = Time.unscaledTime;
             panelGroup.alpha = 0f;
