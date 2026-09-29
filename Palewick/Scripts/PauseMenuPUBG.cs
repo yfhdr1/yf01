@@ -350,9 +350,9 @@ public class PauseMenuPUBG : MonoBehaviour
             t.color = gold;
             t.fontStyle = FontStyle.Bold;
             t.alignment = TextAnchor.MiddleCenter;
-            t.resizeTextForBestFit = true;
-            t.resizeTextMinSize = 8;
-            t.resizeTextMaxSize = 200;
+            t.resizeTextForBestFit = false;
+            t.horizontalOverflow = HorizontalWrapMode.Overflow;
+            t.verticalOverflow = VerticalWrapMode.Overflow;
             FitTextRect(t.rectTransform);
         }
         TMP_Text tm = button.GetComponentInChildren<TMP_Text>(true);
@@ -362,16 +362,14 @@ public class PauseMenuPUBG : MonoBehaviour
             tm.color = gold;
             tm.fontStyle = FontStyles.Bold;
             tm.alignment = TextAlignmentOptions.Center;
-            tm.enableAutoSizing = true;
-            tm.fontSizeMin = 8f;
-            tm.fontSizeMax = 200f;
+            tm.enableAutoSizing = false;
             FitTextRect(tm.rectTransform);
         }
     }
     private static void FitTextRect(RectTransform rt)
     {
-        rt.anchorMin = new Vector2(0.2f, 0.3f);
-        rt.anchorMax = new Vector2(0.8f, 0.7f);
+        rt.anchorMin = new Vector2(0.08f, 0.15f);
+        rt.anchorMax = new Vector2(0.92f, 0.85f);
         rt.offsetMin = Vector2.zero;
         rt.offsetMax = Vector2.zero;
         rt.localScale = Vector3.one;
@@ -429,6 +427,7 @@ public class PauseMenuPUBG : MonoBehaviour
         PlaceRow(gfxButtons, right, w, h, gap, rowY);
         PlaceRow(fpsButtons, right, w, h, gap, fpsY);
         PlaceRow(resButtons, right, w, h, gap, resY);
+        SizeResText(Mathf.Min(h * 0.4f, w * 0.17f));
         GameObject label = FindChild(page, "Label");
         if (label != null)
         {
@@ -440,6 +439,29 @@ public class PauseMenuPUBG : MonoBehaviour
             if (resLabel != null)
             {
                 resLabel.GetComponent<RectTransform>().localPosition = orig.localPosition + new Vector3(0f, resY - rowY, 0f);
+            }
+        }
+    }
+    private void SizeResText(float size)
+    {
+        int px = Mathf.Max(8, Mathf.RoundToInt(size));
+        for (int i = 0; i < resButtons.Length; i++)
+        {
+            if (resButtons[i] == null)
+            {
+                continue;
+            }
+            Text t = resButtons[i].GetComponentInChildren<Text>();
+            if (t != null)
+            {
+                t.resizeTextForBestFit = false;
+                t.fontSize = px;
+            }
+            TMP_Text tm = resButtons[i].GetComponentInChildren<TMP_Text>();
+            if (tm != null)
+            {
+                tm.enableAutoSizing = false;
+                tm.fontSize = px;
             }
         }
     }
