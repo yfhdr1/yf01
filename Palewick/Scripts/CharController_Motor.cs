@@ -22,6 +22,7 @@ public class CharController_Motor : MonoBehaviourPun
     public float jumpCooldown = 0.35f;
     public float jumpBufferTime = 0.2f;
     [HideInInspector] public bool isSprinting;
+    private bool autoRun;
     private CharacterController controller;
     private float verticalVelocity;
     private float moveInput;
@@ -62,6 +63,26 @@ public class CharController_Motor : MonoBehaviourPun
     public bool IsLocal
     {
         get { return photonView == null || !PhotonNetwork.InRoom || photonView.IsMine; }
+    }
+    public bool AutoRun
+    {
+        get { return autoRun; }
+    }
+    public void SetAutoRun(bool on)
+    {
+        if (!IsLocal)
+        {
+            return;
+        }
+        if (autoRun && !on)
+        {
+            isSprinting = false;
+        }
+        autoRun = on;
+    }
+    public void ToggleAutoRun()
+    {
+        SetAutoRun(!autoRun);
     }
     public void Jump()
     {
@@ -136,6 +157,19 @@ public class CharController_Motor : MonoBehaviourPun
             if (Input.GetKeyDown(KeyCode.Space))
             {
                 Jump();
+            }
+        }
+        if (autoRun)
+        {
+            if (new Vector2(rawStrafe, rawMove).magnitude > analogDeadzone)
+            {
+                SetAutoRun(false);
+            }
+            else
+            {
+                rawMove = 1f;
+                rawStrafe = 0f;
+                isSprinting = true;
             }
         }
         Vector2 analog = new Vector2(rawStrafe, rawMove);

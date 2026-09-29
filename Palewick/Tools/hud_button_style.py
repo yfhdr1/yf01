@@ -187,6 +187,7 @@ ITEMS = [
     ('hud_view', 'mdi:autorenew', 0.44, 0, False, None, 9),
     ('hud_flashlight', 'mdi:flashlight', 0.42, -45, False, None, 11),
     ('hud_door', 'mdi:door-open', 0.4, 0, False, None, 13),
+    ('hud_autorun', 'mdi:run-fast', 0.46, 0, False, None, 19),
 ]
 
 if __name__ == '__main__':
