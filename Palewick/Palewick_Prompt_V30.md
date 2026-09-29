@@ -270,3 +270,10 @@ PlayerHealth الجديد وEnemyAI (IsDead) انلصقوا بالمشروع، �
 - Every feature (chat, damage, zombies, doors, health, menus, spawn) must run with no internet and no Photon room, and also in a Photon room with 1-4 players.
 - Never call Photon APIs that fail or throw when not connected; guard with PhotonNetwork.InRoom / OfflineMode and fall back to local logic.
 - ChatSystem: when not in a room, messages are shown locally.
+
+## PERMANENT RULE — HUD BUTTON STYLE (user approved, never change) — 2026-09-29
+- Every HUD button is ROUND and uses the approved horror style: dark blood-red/black grunge disk, cracked irregular blood-red ring with red glow, 3 blood drips under the ring, faint scratches, bone-white glyph (232,214,196) with dark red shadow and thin cuts.
+- Any NEW button must be made in exactly this same style, shape and colours.
+- Generator: Palewick/Tools/hud_button_style.py (add a line to ITEMS: name, icon key 'mdi:<name>' or 'fa:<name>', size, rotation, flip, extra, seed). Output 256x256 PNG, delivered to Assets/UI_Icons as Sprite (2D and UI).
+- Approved files: Palewick/UI_Icons/HUD/hud_sprint, hud_jump, hud_settings, hud_view, hud_flashlight, hud_door (.png).
+- Icons come from free icon fonts (Material Design Icons / Font Awesome Free via qtawesome); never copy PUBG artwork.
