@@ -22,6 +22,7 @@ public class ChatSystem : MonoBehaviour, IOnEventCallback
     private const float BarHeight = 78f;
     private static readonly string[] HintLabels = { "Tap to type", "انقر للكتابة", "کرتە بکە بۆ نووسین" };
     private static readonly string[] TeamLabels = { "Team", "الفريق", "تیم" };
+    private static readonly string[] PlayerLabels = { "Player", "اللاعب", "یاریزان" };
     private static readonly string[] EmptyLabels = { "No messages yet", "لا توجد رسائل بعد", "هیچ نامەیەک نییە" };
     private static readonly string[][] QuickMessages =
     {
@@ -561,10 +562,6 @@ public class ChatSystem : MonoBehaviour, IOnEventCallback
         }
         nextSendTime = Time.unscaledTime + SendCooldown;
         string nick = Clean(PhotonNetwork.NickName);
-        if (nick.Length == 0)
-        {
-            nick = PhotonNetwork.LocalPlayer != null ? "Player " + PhotonNetwork.LocalPlayer.ActorNumber : "Player";
-        }
         if (PhotonNetwork.InRoom)
         {
             RaiseEventOptions options = new RaiseEventOptions { Receivers = ReceiverGroup.All };
@@ -636,6 +633,10 @@ public class ChatSystem : MonoBehaviour, IOnEventCallback
         {
             msg = msg.Substring(0, MaxChars);
         }
+        if (nick.Length == 0)
+        {
+            nick = PlayerLabels[Lang()] + " " + number;
+        }
         historyRows.Add(MakeRow(historyContent, nick, msg, number, false));
         while (historyRows.Count > MaxHistory)
         {
@@ -676,6 +677,7 @@ public class ChatSystem : MonoBehaviour, IOnEventCallback
         bool rtlUi = Lang() > 0;
         bool rightSide = floating || rtlUi;
         bool rtlMsg = HasRtl(msg);
+        bool rtlOrder = rtlUi;
         if (nick.Length > 14)
         {
             nick = nick.Substring(0, 14);
@@ -695,8 +697,8 @@ public class ChatSystem : MonoBehaviour, IOnEventCallback
             if (i == 0 && line.StartsWith(head))
             {
                 string rest = line.Substring(head.Length).Trim();
-                string name = "<color=#" + Hex(team) + ">" + (rtlMsg ? ":" + Vis(nick) : Vis(nick) + ":") + "</color>";
-                if (rtlMsg)
+                string name = "<color=#" + Hex(team) + ">" + (rtlOrder ? ":" + Vis(nick) : Vis(nick) + ":") + "</color>";
+                if (rtlOrder)
                 {
                     sb.Append(Vis(rest)).Append(' ').Append(name);
                 }
