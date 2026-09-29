@@ -19,7 +19,7 @@ public class PauseMenuPUBG : MonoBehaviour
     private const float CloseTime = 0.18f;
     private static readonly string[] LevelKeys = { "low", "medium", "high", "ultra", "ultimate" };
     private static readonly string[] LevelNames = { "SMOOTH", "BALANCED", "HD", "ULTRA", "ULTIMATE" };
-    private static readonly int[] FpsOptions = { 30, 45, 60, 90, 120, 144 };
+    private static readonly int[] FpsOptions = { 30, 45, 60, 90, 120, 144, 165, 185 };
     private static readonly int[] ResSteps = { 720, 1080, 1440 };
     private static int nativeLong;
     private static int nativeShort;
@@ -37,7 +37,7 @@ public class PauseMenuPUBG : MonoBehaviour
     private readonly GameObject[] pages = new GameObject[4];
     private readonly Button[] tabs = new Button[4];
     private readonly Button[] gfxButtons = new Button[5];
-    private readonly Button[] fpsButtons = new Button[6];
+    private readonly Button[] fpsButtons = new Button[8];
     private readonly Button[] resButtons = new Button[4];
     private readonly List<int> resValues = new List<int>();
     private GameObject fpsLabel;
@@ -996,12 +996,17 @@ public class PauseMenuPUBG : MonoBehaviour
                 continue;
             }
             bool supported = IsFpsSupported(FpsOptions[i]);
-            if (fpsButtons[i].gameObject.activeSelf != supported)
+            if (!fpsButtons[i].gameObject.activeSelf)
             {
-                fpsButtons[i].gameObject.SetActive(supported);
+                fpsButtons[i].gameObject.SetActive(true);
                 gfxLayoutDone = false;
             }
-            SetButtonState(fpsButtons[i], FpsOptions[i] == fps);
+            fpsButtons[i].interactable = supported;
+            SetButtonState(fpsButtons[i], supported && FpsOptions[i] == fps);
+            if (!supported && fpsButtons[i].image != null)
+            {
+                fpsButtons[i].image.color = IsCustomSprite(fpsButtons[i].image) ? new Color(0.22f, 0.22f, 0.22f, 0.75f) : new Color(gfxOff.r * 0.5f, gfxOff.g * 0.5f, gfxOff.b * 0.5f, 0.6f);
+            }
         }
     }
     private void SetButtonState(Button button, bool on)
