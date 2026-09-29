@@ -264,3 +264,9 @@ PlayerHealth الجديد وEnemyAI (IsDead) انلصقوا بالمشروع، �
 - Phone test: SMOOTH + 120 FPS measured 110, RES label 720P after choosing 720P => real. Uniform RES text (SizeResText h*0.6 / w*0.22), Btn_Blank art.
 - Texture warnings fixed (palewick_splash_raw, transparent_pixel Compression None). Prebake Collision Meshes already on; remaining 13-mesh collision note is a future-deprecation notice, left as is.
 - User declined flashlight shadows / spot angle change.
+
+## PERMANENT RULE (never forget) — 2026-09-29
+- The game must work BOTH Online and Offline without any problem.
+- Every feature (chat, damage, zombies, doors, health, menus, spawn) must run with no internet and no Photon room, and also in a Photon room with 1-4 players.
+- Never call Photon APIs that fail or throw when not connected; guard with PhotonNetwork.InRoom / OfflineMode and fall back to local logic.
+- ChatSystem: when not in a room, messages are shown locally.
