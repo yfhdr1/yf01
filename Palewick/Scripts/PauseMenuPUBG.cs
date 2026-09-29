@@ -160,6 +160,10 @@ public class PauseMenuPUBG : MonoBehaviour
         {
             boxRect = box.GetComponent<RectTransform>();
         }
+        else if (pausePanel != null)
+        {
+            boxRect = NewRect("MenuBox", pausePanel.transform);
+        }
         GameObject overlay = FindChild(transform.parent, "BrightnessOverlay");
         if (overlay != null)
         {
