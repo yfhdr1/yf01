@@ -70,6 +70,24 @@ public class CharController_Motor : MonoBehaviourPun
             return;
         }
         jumpRequestTime = Time.time;
+        Debug.Log("PW_JUMP pressed grounded=" + IsOnGround());
+    }
+    private bool IsOnGround()
+    {
+        if (controller == null)
+        {
+            return false;
+        }
+        if (controller.isGrounded)
+        {
+            return true;
+        }
+        float scale = Mathf.Abs(transform.lossyScale.y);
+        float r = controller.radius * scale * 0.9f;
+        Vector3 origin = transform.TransformPoint(controller.center);
+        float down = Mathf.Max(0.05f, controller.height * scale * 0.5f - r) + controller.skinWidth + 0.2f;
+        RaycastHit hit;
+        return verticalVelocity <= 0.5f && Physics.SphereCast(origin, r, Vector3.down, out hit, down, ~0, QueryTriggerInteraction.Ignore);
     }
     private void Start()
     {
@@ -200,7 +218,8 @@ public class CharController_Motor : MonoBehaviourPun
         float accelRate = isMoving ? acceleration : deceleration;
         currentVelocity.x = Mathf.MoveTowards(currentVelocity.x, targetVelocity.x, accelRate * Time.fixedDeltaTime);
         currentVelocity.z = Mathf.MoveTowards(currentVelocity.z, targetVelocity.z, accelRate * Time.fixedDeltaTime);
-        if (controller.isGrounded)
+        bool grounded = IsOnGround();
+        if (grounded)
         {
             if (verticalVelocity < 0f)
             {
@@ -212,6 +231,7 @@ public class CharController_Motor : MonoBehaviourPun
                 verticalVelocity = Mathf.Sqrt(jumpHeight * -2f * gravity);
                 lastJumpTime = Time.time;
                 jumpRequestTime = -10f;
+                Debug.Log("PW_JUMP go");
             }
         }
         else
