@@ -370,8 +370,8 @@ public class PauseMenuPUBG : MonoBehaviour
     }
     private static void FitTextRect(RectTransform rt)
     {
-        rt.anchorMin = new Vector2(0.14f, 0.2f);
-        rt.anchorMax = new Vector2(0.86f, 0.8f);
+        rt.anchorMin = new Vector2(0.2f, 0.3f);
+        rt.anchorMax = new Vector2(0.8f, 0.7f);
         rt.offsetMin = Vector2.zero;
         rt.offsetMax = Vector2.zero;
         rt.localScale = Vector3.one;
@@ -401,13 +401,31 @@ public class PauseMenuPUBG : MonoBehaviour
             return;
         }
         gfxLayoutDone = true;
-        float w = b0.width;
-        float h = b0.height;
-        float gap = Mathf.Max(4f, b1.xMin - b0.xMax);
+        float w0 = b0.width;
+        float h0 = b0.height;
+        float gap = Mathf.Clamp(b1.xMin - b0.xMax, 4f, w0 * 0.12f);
         float right = b3.xMax;
+        if (boxRect != null)
+        {
+            Rect box = LocalRect(boxRect, page);
+            right = Mathf.Min(right, box.xMax - gap * 3f);
+        }
+        GameObject labelObj = FindChild(page, "Label");
+        float left = right - (w0 * 6f + gap * 5f);
+        if (labelObj != null)
+        {
+            Rect lab = LocalRect(labelObj.GetComponent<RectTransform>(), page);
+            left = Mathf.Max(left, lab.xMin + h0 * 2.1f);
+        }
+        int maxCount = 1;
+        maxCount = Mathf.Max(maxCount, ActiveCount(gfxButtons));
+        maxCount = Mathf.Max(maxCount, ActiveCount(fpsButtons));
+        maxCount = Mathf.Max(maxCount, ActiveCount(resButtons));
+        float w = Mathf.Clamp((right - left - gap * (maxCount - 1)) / maxCount, w0 * 0.5f, w0);
+        float h = h0 * (w / w0);
         float rowY = b0.center.y;
-        float fpsY = rowY - h * 1.6f;
-        float resY = rowY - h * 3.2f;
+        float fpsY = rowY - h0 * 1.6f;
+        float resY = rowY - h0 * 3.2f;
         PlaceRow(gfxButtons, right, w, h, gap, rowY);
         PlaceRow(fpsButtons, right, w, h, gap, fpsY);
         PlaceRow(resButtons, right, w, h, gap, resY);
@@ -424,6 +442,18 @@ public class PauseMenuPUBG : MonoBehaviour
                 resLabel.GetComponent<RectTransform>().localPosition = orig.localPosition + new Vector3(0f, resY - rowY, 0f);
             }
         }
+    }
+    private static int ActiveCount(Button[] row)
+    {
+        int count = 0;
+        for (int i = 0; i < row.Length; i++)
+        {
+            if (row[i] != null && row[i].gameObject.activeSelf)
+            {
+                count++;
+            }
+        }
+        return count;
     }
     private static Rect LocalRect(RectTransform rt, RectTransform space)
     {
@@ -961,6 +991,17 @@ public class PauseMenuPUBG : MonoBehaviour
         if (IsCustomSprite(button.image))
         {
             button.image.color = on ? Color.white : new Color(0.55f, 0.55f, 0.55f, 1f);
+            Color gold = on ? new Color(1f, 0.84f, 0.5f, 1f) : new Color(0.6f, 0.5f, 0.3f, 1f);
+            Text ct = button.GetComponentInChildren<Text>();
+            if (ct != null)
+            {
+                ct.color = gold;
+            }
+            TMP_Text ctm = button.GetComponentInChildren<TMP_Text>();
+            if (ctm != null)
+            {
+                ctm.color = gold;
+            }
             return;
         }
         if (button.image != null)
