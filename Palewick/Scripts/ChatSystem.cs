@@ -226,7 +226,7 @@ public class ChatSystem : MonoBehaviour, IOnEventCallback
         Image icon = AddImage(NewRect("ChatIcon", root), new Color(0.12f, 0.12f, 0.12f, 0.5f));
         icon.sprite = circleSprite;
         icon.raycastTarget = true;
-        Place(icon.rectTransform, new Vector2(1f, 1f), new Vector2(0.5f, 0.5f), new Vector2(-230f, -330f), new Vector2(100f, 100f));
+        Place(icon.rectTransform, new Vector2(1f, 1f), new Vector2(0.5f, 0.5f), new Vector2(-165f, -520f), new Vector2(100f, 100f));
         chatGlyph = AddImage(NewRect("Glyph", icon.rectTransform), Color.white);
         chatGlyph.sprite = bubbleSprite;
         Stretch(chatGlyph.rectTransform, Vector2.zero, Vector2.one, new Vector2(24f, 24f), new Vector2(-24f, -24f));

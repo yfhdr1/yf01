@@ -142,6 +142,44 @@ def jump_extra(gm):
     d.rectangle([int(gm.width * 0.55), y, int(gm.width * 0.95), y + h], fill=255)
     return im
 
+def make_frame(name='hud_minimap_frame', seed=17):
+    random.seed(seed)
+    yy, xx = np.mgrid[0:W, 0:W].astype(np.float32)
+    cx, ccy = W * 0.5, W * 0.46
+    R = W * 0.38
+    dx, dy = xx - cx, yy - ccy
+    dist = np.sqrt(dx * dx + dy * dy)
+    ang = np.arctan2(dy, dx)
+    n1 = noise(seed, 64)
+    n3 = noise(seed + 3, 3)
+    wob = (np.sin(ang * 7 + seed) * 0.004 + np.sin(ang * 13 + seed * 2) * 0.003) * W + (n1 - 0.5) * W * 0.008
+    edge = R + wob
+    ring_w = W * 0.032
+    ring = np.clip(1 - np.abs(dist - (edge - ring_w * 0.6)) / ring_w, 0, 1)
+    gaps = (noise(seed + 11, 40) > 0.86).astype(np.float32)
+    ring = ring * (1 - gaps * 0.85) * (0.85 + n3 * 0.3)
+    img = Image.fromarray(np.dstack([np.full_like(ring, 150), np.full_like(ring, 8), np.full_like(ring, 10), ring * 255]).astype(np.uint8), 'RGBA')
+    glow_m = Image.fromarray((ring * 255).astype(np.uint8), 'L').filter(ImageFilter.GaussianBlur(W * 0.018))
+    glow = Image.new('RGBA', (W, W), (170, 0, 0, 0))
+    glow.putalpha(glow_m.point(lambda v: int(v * 0.6)))
+    out = Image.new('RGBA', (W, W), (0, 0, 0, 0))
+    out.alpha_composite(glow)
+    out.alpha_composite(img)
+    d = ImageDraw.Draw(out)
+    for i in range(4):
+        a0 = math.radians(random.uniform(55, 125))
+        x = cx + (R - ring_w * 1.2) * math.cos(a0)
+        y0 = ccy + (R - ring_w * 1.2) * math.sin(a0)
+        L = random.uniform(0.05, 0.1) * W
+        w0 = random.uniform(0.009, 0.015) * W
+        col = (120, 4, 6, 245)
+        d.polygon([(x - w0, y0), (x + w0, y0), (x + w0 * 0.55, y0 + L), (x - w0 * 0.55, y0 + L)], fill=col)
+        rd = w0 * 1.25
+        d.ellipse([x - rd, y0 + L - rd * 0.6, x + rd, y0 + L + rd * 1.4], fill=col)
+    out = out.resize((S * 2, S * 2), Image.LANCZOS)
+    out.save(os.path.join(OUT, name + '.png'))
+    return out
+
 ITEMS = [
     ('hud_sprint', 'fa:person-running', 0.42, 0, False, None, 3),
     ('hud_jump', 'fa:person-running', 0.36, 18, False, jump_extra, 5),
@@ -159,3 +197,4 @@ if __name__ == '__main__':
     for i, im in enumerate(ims):
         sheet.alpha_composite(im, (10 + i * 266, 10))
     sheet.save(os.path.join(OUT, '_sheet.png'))
+    make_frame()
