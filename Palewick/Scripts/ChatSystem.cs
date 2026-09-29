@@ -438,8 +438,15 @@ public class ChatSystem : MonoBehaviour, IOnEventCallback
             ColorBlock cb = b.colors;
             cb.pressedColor = new Color(1f, 1f, 1f, 0.2f);
             b.colors = cb;
-            Bind(b, () => SendText(msg));
+            Bind(b, () => SendQuick(msg));
             quickRows.Add(row.gameObject);
+        }
+    }
+    private void SendQuick(string msg)
+    {
+        if (SendText(msg))
+        {
+            SetOpen(false);
         }
     }
     private void ToggleOpen()
