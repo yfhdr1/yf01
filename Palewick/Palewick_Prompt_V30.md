@@ -282,3 +282,4 @@ PlayerHealth الجديد وEnemyAI (IsDead) انلصقوا بالمشروع، �
 - When giving a file: only give the GitHub link and the target path in the project. Nothing else.
 - NEVER explain: open Notepad, paste, Ctrl+A/Ctrl+V, Save As, "Save as type: All Files", "go back to Unity and wait for loading". The user knows these.
 - UI must exist in the Editor inside the Canvas (visible and editable in Hierarchy/Scene), not built only at runtime on Play.
+- Every button/HUD icon PNG import rule (user rule): Texture Type = Sprite (2D and UI), Sprite Mode = Single, then Apply. Always tell the user exactly these two settings for every new icon.
