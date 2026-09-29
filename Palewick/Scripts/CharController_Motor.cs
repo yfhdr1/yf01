@@ -70,7 +70,6 @@ public class CharController_Motor : MonoBehaviourPun
             return;
         }
         jumpRequestTime = Time.time;
-        Debug.Log("PW_JUMP pressed grounded=" + IsOnGround());
     }
     private bool IsOnGround()
     {
@@ -231,7 +230,6 @@ public class CharController_Motor : MonoBehaviourPun
                 verticalVelocity = Mathf.Sqrt(jumpHeight * -2f * gravity);
                 lastJumpTime = Time.time;
                 jumpRequestTime = -10f;
-                Debug.Log("PW_JUMP go");
             }
         }
         else
