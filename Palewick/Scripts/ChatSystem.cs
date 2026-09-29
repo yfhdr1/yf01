@@ -294,6 +294,7 @@ public class ChatSystem : MonoBehaviour, IOnEventCallback
         Stretch(field, Vector2.zero, Vector2.one, new Vector2(ColumnWidth + 10f, 8f), new Vector2(-78f, -8f));
         Image fieldHit = AddImage(field, new Color(1f, 1f, 1f, 0.001f));
         fieldHit.raycastTarget = true;
+        field.gameObject.AddComponent<RectMask2D>();
         inputText = MakeText(field, "", 24, TextAnchor.MiddleLeft, Color.white);
         inputText.supportRichText = false;
         inputText.horizontalOverflow = HorizontalWrapMode.Wrap;
@@ -474,6 +475,8 @@ public class ChatSystem : MonoBehaviour, IOnEventCallback
         inputText.color = rtl ? new Color(0f, 0f, 0f, 0f) : Color.white;
         input.caretColor = rtl ? new Color(0f, 0f, 0f, 0f) : Color.white;
         preview.text = rtl ? PwRtl.Visual(value) : "";
+        bool tooLong = rtl && preview.preferredWidth > preview.rectTransform.rect.width;
+        preview.alignment = tooLong ? TextAnchor.MiddleLeft : TextAnchor.MiddleRight;
         UpdateSendLook(value);
     }
     private void UpdateSendLook(string value)
