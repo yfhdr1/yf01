@@ -2269,55 +2269,57 @@ public static class PwRtl
             return;
         }
         forms = new Dictionary<char, char[]>();
-        Add('\u0622', '\uFE81', '\uFE82', '\0', '\0');
-        Add('\u0623', '\uFE83', '\uFE84', '\0', '\0');
-        Add('\u0624', '\uFE85', '\uFE86', '\0', '\0');
-        Add('\u0625', '\uFE87', '\uFE88', '\0', '\0');
-        Add('\u0626', '\uFE89', '\uFE8A', '\uFE8B', '\uFE8C');
-        Add('\u0627', '\uFE8D', '\uFE8E', '\0', '\0');
-        Add('\u0628', '\uFE8F', '\uFE90', '\uFE91', '\uFE92');
-        Add('\u0629', '\uFE93', '\uFE94', '\0', '\0');
-        Add('\u062A', '\uFE95', '\uFE96', '\uFE97', '\uFE98');
-        Add('\u062B', '\uFE99', '\uFE9A', '\uFE9B', '\uFE9C');
-        Add('\u062C', '\uFE9D', '\uFE9E', '\uFE9F', '\uFEA0');
-        Add('\u062D', '\uFEA1', '\uFEA2', '\uFEA3', '\uFEA4');
-        Add('\u062E', '\uFEA5', '\uFEA6', '\uFEA7', '\uFEA8');
-        Add('\u062F', '\uFEA9', '\uFEAA', '\0', '\0');
-        Add('\u0630', '\uFEAB', '\uFEAC', '\0', '\0');
-        Add('\u0631', '\uFEAD', '\uFEAE', '\0', '\0');
-        Add('\u0632', '\uFEAF', '\uFEB0', '\0', '\0');
-        Add('\u0633', '\uFEB1', '\uFEB2', '\uFEB3', '\uFEB4');
-        Add('\u0634', '\uFEB5', '\uFEB6', '\uFEB7', '\uFEB8');
-        Add('\u0635', '\uFEB9', '\uFEBA', '\uFEBB', '\uFEBC');
-        Add('\u0636', '\uFEBD', '\uFEBE', '\uFEBF', '\uFEC0');
-        Add('\u0637', '\uFEC1', '\uFEC2', '\uFEC3', '\uFEC4');
-        Add('\u0638', '\uFEC5', '\uFEC6', '\uFEC7', '\uFEC8');
-        Add('\u0639', '\uFEC9', '\uFECA', '\uFECB', '\uFECC');
-        Add('\u063A', '\uFECD', '\uFECE', '\uFECF', '\uFED0');
-        Add('\u0641', '\uFED1', '\uFED2', '\uFED3', '\uFED4');
-        Add('\u0642', '\uFED5', '\uFED6', '\uFED7', '\uFED8');
-        Add('\u0643', '\uFED9', '\uFEDA', '\uFEDB', '\uFEDC');
-        Add('\u0644', '\uFEDD', '\uFEDE', '\uFEDF', '\uFEE0');
-        Add('\u0645', '\uFEE1', '\uFEE2', '\uFEE3', '\uFEE4');
-        Add('\u0646', '\uFEE5', '\uFEE6', '\uFEE7', '\uFEE8');
-        Add('\u0647', '\uFEE9', '\uFEEA', '\uFEEB', '\uFEEC');
-        Add('\u0648', '\uFEED', '\uFEEE', '\0', '\0');
-        Add('\u0649', '\uFEEF', '\uFEF0', '\0', '\0');
-        Add('\u064A', '\uFEF1', '\uFEF2', '\uFEF3', '\uFEF4');
-        Add('\u067E', '\uFB56', '\uFB57', '\uFB58', '\uFB59');
-        Add('\u0686', '\uFB7A', '\uFB7B', '\uFB7C', '\uFB7D');
-        Add('\u0698', '\uFB8A', '\uFB8B', '\0', '\0');
-        Add('\u06A4', '\uFB6A', '\uFB6B', '\uFB6C', '\uFB6D');
-        Add('\u06A9', '\uFB8E', '\uFB8F', '\uFB90', '\uFB91');
-        Add('\u06AF', '\uFB92', '\uFB93', '\uFB94', '\uFB95');
-        Add('\u06BE', '\uFBAA', '\uFBAB', '\uFBAC', '\uFBAD');
-        Add('\u06C6', '\uFBD9', '\uFBDA', '\0', '\0');
-        Add('\u06CC', '\uFBFC', '\uFBFD', '\uFBFE', '\uFBFF');
-        Add('\u06D5', '\u06D5', '\uFEEA', '\0', '\0');
+        Add('\u0622', '\uFE82', '\0', '\0');
+        Add('\u0623', '\uFE84', '\0', '\0');
+        Add('\u0624', '\uFE86', '\0', '\0');
+        Add('\u0625', '\uFE88', '\0', '\0');
+        Add('\u0626', '\uFE8A', '\uFE8B', '\uFE8C');
+        Add('\u0627', '\uFE8E', '\0', '\0');
+        Add('\u0628', '\uFE90', '\uFE91', '\uFE92');
+        Add('\u0629', '\uFE94', '\0', '\0');
+        Add('\u062A', '\uFE96', '\uFE97', '\uFE98');
+        Add('\u062B', '\uFE9A', '\uFE9B', '\uFE9C');
+        Add('\u062C', '\uFE9E', '\uFE9F', '\uFEA0');
+        Add('\u062D', '\uFEA2', '\uFEA3', '\uFEA4');
+        Add('\u062E', '\uFEA6', '\uFEA7', '\uFEA8');
+        Add('\u062F', '\uFEAA', '\0', '\0');
+        Add('\u0630', '\uFEAC', '\0', '\0');
+        Add('\u0631', '\uFEAE', '\0', '\0');
+        Add('\u0632', '\uFEB0', '\0', '\0');
+        Add('\u0633', '\uFEB2', '\uFEB3', '\uFEB4');
+        Add('\u0634', '\uFEB6', '\uFEB7', '\uFEB8');
+        Add('\u0635', '\uFEBA', '\uFEBB', '\uFEBC');
+        Add('\u0636', '\uFEBE', '\uFEBF', '\uFEC0');
+        Add('\u0637', '\uFEC2', '\uFEC3', '\uFEC4');
+        Add('\u0638', '\uFEC6', '\uFEC7', '\uFEC8');
+        Add('\u0639', '\uFECA', '\uFECB', '\uFECC');
+        Add('\u063A', '\uFECE', '\uFECF', '\uFED0');
+        Add('\u0641', '\uFED2', '\uFED3', '\uFED4');
+        Add('\u0642', '\uFED6', '\uFED7', '\uFED8');
+        Add('\u0643', '\uFEDA', '\uFEDB', '\uFEDC');
+        Add('\u0644', '\uFEDE', '\uFEDF', '\uFEE0');
+        Add('\u0645', '\uFEE2', '\uFEE3', '\uFEE4');
+        Add('\u0646', '\uFEE6', '\uFEE7', '\uFEE8');
+        Add('\u0647', '\uFEEA', '\u06BE', '\uFBAB');
+        Add('\u0648', '\uFEEE', '\0', '\0');
+        Add('\u0649', '\uFEF0', '\0', '\0');
+        Add('\u064A', '\uFEF2', '\uFEF3', '\uFEF4');
+        Add('\u067E', '\uFB57', '\uFB58', '\uFB59');
+        Add('\u0686', '\uFB7B', '\uFB7C', '\uFB7D');
+        Add('\u0695', '\uE001', '\0', '\0');
+        Add('\u0698', '\uFB8B', '\0', '\0');
+        Add('\u06A4', '\uFB6B', '\uFB6C', '\uFB6D');
+        Add('\u06A9', '\uFB8F', '\uFB90', '\uFB91');
+        Add('\u06AF', '\uFB93', '\uFB94', '\uFB95');
+        Add('\u06B5', '\uE007', '\uE008', '\uE009');
+        Add('\u06C6', '\uFBDA', '\0', '\0');
+        Add('\u06CC', '\uFBFD', '\uFBFE', '\uFBFF');
+        Add('\u06CE', '\uE004', '\uE005', '\uE006');
+        Add('\u06D5', '\uE000', '\0', '\0');
     }
-    private static void Add(char c, char iso, char fin, char ini, char med)
+    private static void Add(char c, char fin, char ini, char med)
     {
-        forms[c] = new[] { iso, fin, ini, med };
+        forms[c] = new[] { c, fin, ini, med };
     }
     private static int JoinType(char c)
     {
@@ -2336,8 +2338,12 @@ public static class PwRtl
     {
         return (c >= '\u064B' && c <= '\u065F') || c == '\u0670' || c == '\u200C' || c == '\u200D';
     }
-    private static char LamAlef(char alef, bool final)
+    private static char LamAlef(char lam, char alef, bool final)
     {
+        if (lam == '\u06B5')
+        {
+            return alef == '\u0627' ? (final ? '\uE002' : '\uE003') : '\0';
+        }
         switch (alef)
         {
             case '\u0622':
@@ -2374,9 +2380,9 @@ public static class PwRtl
                 continue;
             }
             bool prevJoins = i > 0 && JoinType(s[i - 1]) == 2;
-            if (c == '\u0644' && i + 1 < s.Length)
+            if ((c == '\u0644' || c == '\u06B5') && i + 1 < s.Length)
             {
-                char lig = LamAlef(s[i + 1], prevJoins);
+                char lig = LamAlef(c, s[i + 1], prevJoins);
                 if (lig != '\0')
                 {
                     sb.Append(lig);
@@ -2393,7 +2399,7 @@ public static class PwRtl
     }
     private static bool IsRtl(char c)
     {
-        return (c >= '\u0600' && c <= '\u06FF') || (c >= '\uFB50' && c <= '\uFDFF') || (c >= '\uFE70' && c <= '\uFEFF');
+        return (c >= '\u0600' && c <= '\u06FF') || (c >= '\uE000' && c <= '\uE00F') || (c >= '\uFB50' && c <= '\uFDFF') || (c >= '\uFE70' && c <= '\uFEFF');
     }
     private static char Mirror(char c)
     {
