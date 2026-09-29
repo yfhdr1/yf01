@@ -61,7 +61,6 @@ public class ChatSystem : MonoBehaviour, IOnEventCallback
     private int unread;
     private float openTime;
     private RectTransform floatBox;
-    private GameObject iconObject;
     private Image chatGlyph;
     private GameObject closeGlyph;
     private GameObject badge;
@@ -225,7 +224,6 @@ public class ChatSystem : MonoBehaviour, IOnEventCallback
         Image icon = AddImage(NewRect("ChatIcon", root), new Color(0.12f, 0.12f, 0.12f, 0.5f));
         icon.sprite = circleSprite;
         icon.raycastTarget = true;
-        iconObject = icon.gameObject;
         Place(icon.rectTransform, new Vector2(1f, 1f), new Vector2(0.5f, 0.5f), new Vector2(-230f, -330f), new Vector2(100f, 100f));
         chatGlyph = AddImage(NewRect("Glyph", icon.rectTransform), Color.white);
         chatGlyph.sprite = bubbleSprite;
@@ -474,10 +472,25 @@ public class ChatSystem : MonoBehaviour, IOnEventCallback
         bool rtl = HasRtl(value);
         inputText.color = rtl ? new Color(0f, 0f, 0f, 0f) : Color.white;
         input.caretColor = rtl ? new Color(0f, 0f, 0f, 0f) : Color.white;
-        preview.text = rtl ? PwRtl.Visual(value) : "";
-        bool tooLong = rtl && preview.preferredWidth > preview.rectTransform.rect.width;
-        preview.alignment = tooLong ? TextAnchor.MiddleLeft : TextAnchor.MiddleRight;
+        preview.text = rtl ? FitPreview(value) : "";
         UpdateSendLook(value);
+    }
+    private string FitPreview(string value)
+    {
+        float width = preview.rectTransform.rect.width;
+        string shown = PwRtl.Visual(value);
+        int start = 0;
+        while (width > 1f && start < value.Length - 1)
+        {
+            preview.text = shown;
+            if (preview.preferredWidth <= width)
+            {
+                break;
+            }
+            start++;
+            shown = PwRtl.Visual(value.Substring(start));
+        }
+        return shown;
     }
     private void UpdateSendLook(string value)
     {
@@ -727,12 +740,6 @@ public class ChatSystem : MonoBehaviour, IOnEventCallback
         {
             hiddenByLoading = loading;
             if (loading)
-            {
-                SetOpen(false);
-                floatBox.gameObject.SetActive(false);
-            }
-            iconObject.SetActive(!loading);
-            if (!loading)
             {
                 SetOpen(false);
             }
