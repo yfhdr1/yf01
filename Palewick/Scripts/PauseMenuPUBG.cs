@@ -32,6 +32,7 @@ public class PauseMenuPUBG : MonoBehaviour
     private const string VibMonsterKey = "pw_vibmonster";
     private const string GyroKey = "pw_gyro";
     private const string GyroSensKey = "pw_gyrosens";
+    private const string GyroInvKey = "pw_gyroinv";
     private const float OpenTime = 0.25f;
     private const float CloseTime = 0.18f;
     private const float RowHeight = 84f;
@@ -527,6 +528,7 @@ public class PauseMenuPUBG : MonoBehaviour
         SliderRow(c, "row_freelook", 0.05f, 0.5f, 0.0075f, () => sensValue, SetSensitivity, v => Mathf.RoundToInt(v / SensDefault * 100f) + "%");
         Section(c, "sec_gyro");
         SegRow(c, "row_gyro", "hint_gyro", OffOn(), () => PlayerPrefs.GetInt(GyroKey, 0), v => { SaveInt(GyroKey, v); ApplyGyro(); }, v => v == 0 || SystemInfo.supportsGyroscope);
+        SegRow(c, "row_gyroinv", "hint_gyroinv", OffOn(), () => PlayerPrefs.GetInt(GyroInvKey, 0), v => { SaveInt(GyroInvKey, v); ApplyGyro(); }, v => v == 0 || SystemInfo.supportsGyroscope);
         SliderRow(c, "row_gyrosens", 0.2f, 3f, 0.1f, () => PlayerPrefs.GetFloat(GyroSensKey, 1f), v => { SaveFloat(GyroSensKey, v); ApplyGyro(); }, v => Mathf.RoundToInt(v * 100f) + "%");
         BottomButton(Bottom(), "reset", "hint_reset_sens", () => { SaveFloat(GyroSensKey, 1f); ApplyGyro(); SetSensitivity(SensDefault); });
     }
@@ -1786,7 +1788,7 @@ public class PauseMenuPUBG : MonoBehaviour
         CharController_Motor motor = player.GetComponent<CharController_Motor>();
         if (motor != null)
         {
-            motor.SetGyro(PlayerPrefs.GetInt(GyroKey, 0) == 1, PlayerPrefs.GetFloat(GyroSensKey, 1f));
+            motor.SetGyro(PlayerPrefs.GetInt(GyroKey, 0) == 1, PlayerPrefs.GetFloat(GyroSensKey, 1f), PlayerPrefs.GetInt(GyroInvKey, 0) == 1);
         }
     }
     private void SetVolume(float value)
@@ -2307,6 +2309,8 @@ public static class PwText
         { "sec_gyro", new[] { "Gyroscope", "الجيروسكوب", "جایرۆسکۆپ" } },
         { "row_gyro", new[] { "Gyroscope", "الجيروسكوب", "جایرۆسکۆپ" } },
         { "hint_gyro", new[] { "Move the phone to look around.", "حرّك الهاتف لتحريك الكاميرا", "مۆبایلەکە بجوڵێنە بۆ جوڵاندنی کامێرا" } },
+        { "row_gyroinv", new[] { "Invert Gyroscope", "عكس الجيروسكوب", "پێچەوانەکردنی جایرۆسکۆپ" } },
+        { "hint_gyroinv", new[] { "Reverse the camera movement direction.", "عكس اتجاه حركة الكاميرا", "پێچەوانەکردنی ئاراستەی جوڵەی کامێرا" } },
         { "row_gyrosens", new[] { "Gyroscope Sensitivity", "حساسية الجيروسكوب", "هەستیاریی جایرۆسکۆپ" } },
         { "hint_reset_sens", new[] { "Restore the default sensitivity.", "استعادة الحساسية الافتراضية", "گەڕاندنەوەی هەستیاری" } },
         { "sec_volume", new[] { "Volume Controls", "عناصر التحكم بمستوى الصوت", "کۆنتڕۆڵی دەنگ" } },

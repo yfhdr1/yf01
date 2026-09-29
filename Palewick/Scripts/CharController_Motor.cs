@@ -24,6 +24,7 @@ public class CharController_Motor : MonoBehaviourPun
     [HideInInspector] public bool isSprinting;
     [HideInInspector] public bool gyroEnabled;
     [HideInInspector] public float gyroSensitivity = 1f;
+    [HideInInspector] public bool gyroInvert;
     private bool autoRun;
     private CharacterController controller;
     private float verticalVelocity;
@@ -86,8 +87,9 @@ public class CharController_Motor : MonoBehaviourPun
     {
         SetAutoRun(!autoRun);
     }
-    public void SetGyro(bool on, float sensitivity)
+    public void SetGyro(bool on, float sensitivity, bool invert)
     {
+        gyroInvert = invert;
         gyroEnabled = on && SystemInfo.supportsGyroscope;
         gyroSensitivity = Mathf.Clamp(sensitivity, 0.2f, 3f);
         if (SystemInfo.supportsGyroscope)
@@ -109,6 +111,11 @@ public class CharController_Motor : MonoBehaviourPun
         {
             yaw = r.x;
             pitch = -r.y;
+        }
+        if (gyroInvert)
+        {
+            yaw = -yaw;
+            pitch = -pitch;
         }
         yawInput += yaw * k;
         pitchInput += pitch * k;
@@ -158,7 +165,7 @@ public class CharController_Motor : MonoBehaviourPun
         touchLookSensitivity = PlayerPrefs.GetFloat("TouchSensitivity", 0.15f);
         if (IsLocal)
         {
-            SetGyro(PlayerPrefs.GetInt("pw_gyro", 0) == 1, PlayerPrefs.GetFloat("pw_gyrosens", 1f));
+            SetGyro(PlayerPrefs.GetInt("pw_gyro", 0) == 1, PlayerPrefs.GetFloat("pw_gyrosens", 1f), PlayerPrefs.GetInt("pw_gyroinv", 0) == 1);
         }
         if (animator == null)
         {
