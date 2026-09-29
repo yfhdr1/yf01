@@ -292,6 +292,10 @@ public class PauseMenuPUBG : MonoBehaviour
         BuildSensitivityPage();
         BuildAudioPage();
         BuildLanguagePage();
+        if (lang > 0)
+        {
+            MirrorChildren(root);
+        }
     }
     private void BuildTab(int i, string key)
     {
@@ -638,6 +642,52 @@ public class PauseMenuPUBG : MonoBehaviour
                 RefreshAll();
             }
         });
+        if (lang > 0)
+        {
+            MirrorChildren(popup);
+        }
+    }
+    private static void MirrorChildren(RectTransform parent)
+    {
+        foreach (Transform child in parent)
+        {
+            RectTransform rt = child as RectTransform;
+            if (rt == null || rt.name == "LayoutRow")
+            {
+                continue;
+            }
+            Vector2 aMin = rt.anchorMin;
+            Vector2 aMax = rt.anchorMax;
+            rt.anchorMin = new Vector2(1f - aMax.x, aMin.y);
+            rt.anchorMax = new Vector2(1f - aMin.x, aMax.y);
+            rt.pivot = new Vector2(1f - rt.pivot.x, rt.pivot.y);
+            rt.anchoredPosition = new Vector2(-rt.anchoredPosition.x, rt.anchoredPosition.y);
+            Text t = rt.GetComponent<Text>();
+            if (t != null)
+            {
+                t.alignment = FlipAlign(t.alignment);
+            }
+            MirrorChildren(rt);
+        }
+    }
+    private static TextAnchor FlipAlign(TextAnchor a)
+    {
+        switch (a)
+        {
+            case TextAnchor.UpperLeft:
+                return TextAnchor.UpperRight;
+            case TextAnchor.UpperRight:
+                return TextAnchor.UpperLeft;
+            case TextAnchor.MiddleLeft:
+                return TextAnchor.MiddleRight;
+            case TextAnchor.MiddleRight:
+                return TextAnchor.MiddleLeft;
+            case TextAnchor.LowerLeft:
+                return TextAnchor.LowerRight;
+            case TextAnchor.LowerRight:
+                return TextAnchor.LowerLeft;
+        }
+        return a;
     }
     private void ClosePopup()
     {
@@ -694,7 +744,7 @@ public class PauseMenuPUBG : MonoBehaviour
         {
             return label + "  <size=20><color=#8A8480>(" + hint + ")</color></size>";
         }
-        return "<size=20><color=#8A8480>" + PwRtl.Visual("(" + hint + ")") + "</color></size>  " + PwRtl.Visual(label);
+        return PwRtl.Visual(label) + "\n<size=20><color=#8A8480>" + PwRtl.Visual(hint) + "</color></size>";
     }
     private Text SegRow(RectTransform content, string labelKey, string hintKey, string[] options, System.Func<int> getSel, System.Action<int> onPick, System.Func<int, bool> isEnabled)
     {
@@ -709,7 +759,7 @@ public class PauseMenuPUBG : MonoBehaviour
         int n = options.Length;
         for (int i = 0; i < n; i++)
         {
-            int slot = lang == 0 ? i : n - 1 - i;
+            int slot = i;
             RectTransform b = NewRect("Opt" + i, group);
             b.anchorMin = new Vector2(slot / (float)n, 0f);
             b.anchorMax = new Vector2((slot + 1) / (float)n, 1f);
@@ -781,7 +831,7 @@ public class PauseMenuPUBG : MonoBehaviour
         slider.fillRect = fill.rectTransform;
         slider.handleRect = handle.rectTransform;
         slider.targetGraphic = handle;
-        slider.direction = Slider.Direction.LeftToRight;
+        slider.direction = lang == 0 ? Slider.Direction.LeftToRight : Slider.Direction.RightToLeft;
         slider.minValue = min;
         slider.maxValue = max;
         slider.SetValueWithoutNotify(getVal());
