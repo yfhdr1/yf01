@@ -45,6 +45,12 @@ public class ChatSystem : MonoBehaviour, IOnEventCallback
     private readonly List<float> floatTimes = new List<float>();
     private readonly List<GameObject> quickRows = new List<GameObject>();
     private readonly List<Button> boundButtons = new List<Button>();
+    public Sprite circleArt;
+    public Sprite squareArt;
+    public Sprite bubbleArt;
+    public Sprite clockArt;
+    public Sprite sendArt;
+    public Sprite panelArt;
     private Font latinFont;
     private Font rtlFont;
     private Sprite circleSprite;
@@ -169,20 +175,20 @@ public class ChatSystem : MonoBehaviour, IOnEventCallback
             input.onValueChanged.RemoveListener(OnTyping);
             input.onEndEdit.RemoveListener(OnEndEdit);
         }
-        DestroySprite(circleSprite);
-        DestroySprite(bubbleSprite);
-        DestroySprite(clockSprite);
-        DestroySprite(sendSprite);
-        DestroySprite(squareSprite);
-        DestroySprite(panelSprite);
+        DestroySprite(circleSprite, circleArt);
+        DestroySprite(bubbleSprite, bubbleArt);
+        DestroySprite(clockSprite, clockArt);
+        DestroySprite(sendSprite, sendArt);
+        DestroySprite(squareSprite, squareArt);
+        DestroySprite(panelSprite, panelArt);
         if (popClip != null)
         {
             Destroy(popClip);
         }
     }
-    private static void DestroySprite(Sprite s)
+    private static void DestroySprite(Sprite s, Sprite art)
     {
-        if (s != null)
+        if (s != null && s != art)
         {
             Destroy(s.texture);
             Destroy(s);
@@ -190,18 +196,7 @@ public class ChatSystem : MonoBehaviour, IOnEventCallback
     }
     private void Start()
     {
-        latinFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        rtlFont = Resources.Load<Font>("Fonts/UniMahanBilal");
-        if (rtlFont == null)
-        {
-            rtlFont = latinFont;
-        }
-        circleSprite = MakeRoundSprite(128, 64);
-        squareSprite = MakeRoundSprite(32, 5);
-        bubbleSprite = MakeBubbleIcon(128);
-        clockSprite = MakeClockIcon(128);
-        sendSprite = MakeSendIcon(128);
-        panelSprite = MakeRoundSprite(64, 18);
+        LoadAssets();
         popClip = MakePop();
         audioSource = gameObject.AddComponent<AudioSource>();
         audioSource.playOnAwake = false;
@@ -215,12 +210,113 @@ public class ChatSystem : MonoBehaviour, IOnEventCallback
             loadingPanel = lp != null ? lp.gameObject : null;
         }
     }
+    private void LoadAssets()
+    {
+        latinFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        rtlFont = Resources.Load<Font>("Fonts/UniMahanBilal");
+        if (rtlFont == null)
+        {
+            rtlFont = latinFont;
+        }
+        circleSprite = circleArt != null ? circleArt : MakeRoundSprite(128, 64);
+        squareSprite = squareArt != null ? squareArt : MakeRoundSprite(32, 5);
+        bubbleSprite = bubbleArt != null ? bubbleArt : MakeBubbleIcon(128);
+        clockSprite = clockArt != null ? clockArt : MakeClockIcon(128);
+        sendSprite = sendArt != null ? sendArt : MakeSendIcon(128);
+        panelSprite = panelArt != null ? panelArt : MakeRoundSprite(64, 18);
+    }
+    public void BuildLayoutInEditor()
+    {
+        LoadAssets();
+        if (transform.Find("ChatIcon") == null)
+        {
+            CreateLayout();
+            teamText.text = TeamLabels[0];
+            placeholder.text = HintLabels[0];
+            emptyText.text = EmptyLabels[0];
+        }
+        Transform p = transform.Find("ChatPanel");
+        if (p != null)
+        {
+            p.gameObject.SetActive(false);
+        }
+        Transform b = transform.Find("ChatIcon/Badge");
+        if (b != null)
+        {
+            b.gameObject.SetActive(false);
+        }
+        Transform c = transform.Find("ChatIcon/Close");
+        if (c != null)
+        {
+            c.gameObject.SetActive(false);
+        }
+    }
     private void Bind(Button b, UnityEngine.Events.UnityAction a)
     {
         b.onClick.AddListener(a);
         boundButtons.Add(b);
     }
     private void Build()
+    {
+        if (transform.Find("ChatIcon") == null)
+        {
+            CreateLayout();
+        }
+        Wire();
+    }
+    private void Wire()
+    {
+        Transform icon = transform.Find("ChatIcon");
+        chatGlyph = icon.Find("Glyph").GetComponent<Image>();
+        closeGlyph = icon.Find("Close").gameObject;
+        badge = icon.Find("Badge").gameObject;
+        badgeText = badge.transform.Find("Count").GetComponent<Text>();
+        badge.SetActive(false);
+        Bind(icon.GetComponent<Button>(), ToggleOpen);
+        floatBox = (RectTransform)transform.Find("ChatFloat");
+        panel = transform.Find("ChatPanel").gameObject;
+        panelGroup = panel.GetComponent<CanvasGroup>();
+        if (panelGroup == null)
+        {
+            panelGroup = panel.AddComponent<CanvasGroup>();
+        }
+        Transform column = panel.transform.Find("Column");
+        Transform tab0 = column.Find("Tab0");
+        Transform tab1 = column.Find("Tab1");
+        tabQuickIcon = tab0.Find("Icon").GetComponent<Image>();
+        tabQuickMark = tab0.Find("Mark").GetComponent<Image>();
+        tabHistoryIcon = tab1.Find("Icon").GetComponent<Image>();
+        tabHistoryMark = tab1.Find("Mark").GetComponent<Image>();
+        Bind(tab0.GetComponent<Button>(), () => SelectTab(0));
+        Bind(tab1.GetComponent<Button>(), () => SelectTab(1));
+        Transform area = panel.transform.Find("Area");
+        historyView = area.Find("History").gameObject;
+        historyContent = (RectTransform)historyView.transform.Find("Content");
+        historyScroll = historyView.GetComponent<ScrollRect>();
+        emptyText = historyView.transform.Find("Empty").GetComponent<Text>();
+        quickView = area.Find("Quick").gameObject;
+        quickContent = (RectTransform)quickView.transform.Find("Content");
+        Transform bar = panel.transform.Find("Bar");
+        teamText = bar.Find("Team").GetComponent<Text>();
+        Transform field = bar.Find("Field");
+        input = field.GetComponent<InputField>();
+        inputText = field.Find("InputText").GetComponent<Text>();
+        placeholder = field.Find("Placeholder").GetComponent<Text>();
+        preview = field.Find("Preview").GetComponent<Text>();
+        preview.font = rtlFont;
+        Transform m = transform.Find("Measure");
+        measure = m != null ? m.GetComponent<Text>() : MakeText(transform, "", 24, TextAnchor.UpperLeft, Color.white);
+        measure.supportRichText = false;
+        measure.enabled = false;
+        input.onValueChanged.AddListener(OnTyping);
+        input.onEndEdit.AddListener(OnEndEdit);
+        sendImage = bar.Find("Send").GetComponent<Image>();
+        Bind(sendImage.GetComponent<Button>(), Send);
+        UpdateSendLook("");
+        ApplyLanguage();
+        SelectTab(0);
+    }
+    private void CreateLayout()
     {
         RectTransform root = (RectTransform)transform;
         Image icon = AddImage(NewRect("ChatIcon", root), new Color(0.12f, 0.12f, 0.12f, 0.5f));
@@ -244,11 +340,11 @@ public class ChatSystem : MonoBehaviour, IOnEventCallback
         Place(dot.rectTransform, new Vector2(1f, 1f), new Vector2(0.5f, 0.5f), new Vector2(-12f, -12f), new Vector2(34f, 34f));
         badgeText = MakeText(dot.rectTransform, "", 20, TextAnchor.MiddleCenter, Color.white);
         badgeText.fontStyle = FontStyle.Bold;
+        badgeText.name = "Count";
         Stretch(badgeText.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
         badge = dot.gameObject;
         badge.SetActive(false);
-        Button iconButton = icon.gameObject.AddComponent<Button>();
-        Bind(iconButton, ToggleOpen);
+        icon.gameObject.AddComponent<Button>();
         floatBox = NewRect("ChatFloat", root);
         Place(floatBox, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-290f, -290f), new Vector2(PanelWidth + 60f, 260f));
         VerticalLayoutGroup fv = floatBox.gameObject.AddComponent<VerticalLayoutGroup>();
@@ -281,13 +377,16 @@ public class ChatSystem : MonoBehaviour, IOnEventCallback
         ScrollRect quickScroll;
         quickView = MakeList(area, "Quick", out quickContent, out quickScroll);
         emptyText = MakeText(historyView.transform, "", 23, TextAnchor.MiddleCenter, new Color(1f, 1f, 1f, 0.4f));
+        emptyText.name = "Empty";
         Stretch(emptyText.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
         Image bar = AddImage(NewRect("Bar", prt), new Color(1f, 1f, 1f, 0.04f));
         Stretch(bar.rectTransform, Vector2.zero, new Vector2(1f, 0f), Vector2.zero, new Vector2(0f, BarHeight));
         Image barLine = AddImage(NewRect("Line", bar.rectTransform), separator);
         Stretch(barLine.rectTransform, new Vector2(0f, 1f), Vector2.one, new Vector2(0f, -2f), Vector2.zero);
         teamText = MakeText(bar.rectTransform, "", 24, TextAnchor.MiddleCenter, yellow);
+        teamText.name = "Team";
         measure = MakeText(root, "", 24, TextAnchor.UpperLeft, Color.white);
+        measure.name = "Measure";
         measure.supportRichText = false;
         measure.enabled = false;
         Stretch(teamText.rectTransform, Vector2.zero, new Vector2(0f, 1f), Vector2.zero, new Vector2(ColumnWidth, 0f));
@@ -299,12 +398,15 @@ public class ChatSystem : MonoBehaviour, IOnEventCallback
         fieldHit.raycastTarget = true;
         field.gameObject.AddComponent<RectMask2D>();
         inputText = MakeText(field, "", 24, TextAnchor.MiddleLeft, Color.white);
+        inputText.name = "InputText";
         inputText.supportRichText = false;
         inputText.horizontalOverflow = HorizontalWrapMode.Wrap;
         Stretch(inputText.rectTransform, Vector2.zero, Vector2.one, new Vector2(8f, 0f), new Vector2(-8f, 0f));
         placeholder = MakeText(field, "", 23, TextAnchor.MiddleLeft, new Color(1f, 1f, 1f, 0.45f));
+        placeholder.name = "Placeholder";
         Stretch(placeholder.rectTransform, Vector2.zero, Vector2.one, new Vector2(8f, 0f), new Vector2(-8f, 0f));
         preview = MakeText(field, "", 24, TextAnchor.MiddleRight, Color.white);
+        preview.name = "Preview";
         preview.font = rtlFont;
         preview.supportRichText = false;
         Stretch(preview.rectTransform, Vector2.zero, Vector2.one, new Vector2(8f, 0f), new Vector2(-8f, 0f));
@@ -316,18 +418,12 @@ public class ChatSystem : MonoBehaviour, IOnEventCallback
         input.shouldHideMobileInput = false;
         input.customCaretColor = true;
         input.caretColor = Color.white;
-        input.onValueChanged.AddListener(OnTyping);
-        input.onEndEdit.AddListener(OnEndEdit);
         Image send = AddImage(NewRect("Send", bar.rectTransform), yellow);
         sendImage = send;
         send.sprite = sendSprite;
         send.raycastTarget = true;
         Place(send.rectTransform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-16f, 0f), new Vector2(52f, 52f));
-        Button sendButton = send.gameObject.AddComponent<Button>();
-        Bind(sendButton, Send);
-        UpdateSendLook("");
-        ApplyLanguage();
-        SelectTab(0);
+        send.gameObject.AddComponent<Button>();
     }
     private Image MakeTab(RectTransform column, int index, Sprite sprite, out Image mark)
     {
@@ -348,8 +444,6 @@ public class ChatSystem : MonoBehaviour, IOnEventCallback
         Place(ic.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(48f, 48f));
         Button b = tab.gameObject.AddComponent<Button>();
         b.transition = Selectable.Transition.None;
-        int i = index;
-        Bind(b, () => SelectTab(i));
         return ic;
     }
     private GameObject MakeList(RectTransform area, string name, out RectTransform content, out ScrollRect scroll)
@@ -893,7 +987,7 @@ public class ChatSystem : MonoBehaviour, IOnEventCallback
         tex.filterMode = FilterMode.Bilinear;
         return tex;
     }
-    private static Sprite MakeRoundSprite(int size, int radius)
+    public static Sprite MakeRoundSprite(int size, int radius)
     {
         Texture2D tex = NewTex(size);
         Color[] px = new Color[size * size];
@@ -919,7 +1013,7 @@ public class ChatSystem : MonoBehaviour, IOnEventCallback
         float d = Vector2.Distance(p, new Vector2(cx, cy));
         return Mathf.Clamp01(r - d + 0.5f);
     }
-    private static Sprite MakeBubbleIcon(int size)
+    public static Sprite MakeBubbleIcon(int size)
     {
         Texture2D tex = NewTex(size);
         Color[] px = new Color[size * size];
@@ -956,7 +1050,7 @@ public class ChatSystem : MonoBehaviour, IOnEventCallback
         tex.Apply();
         return Sprite.Create(tex, new Rect(0f, 0f, size, size), new Vector2(0.5f, 0.5f), 100f);
     }
-    private static Sprite MakeClockIcon(int size)
+    public static Sprite MakeClockIcon(int size)
     {
         Texture2D tex = NewTex(size);
         Color[] px = new Color[size * size];
@@ -986,7 +1080,7 @@ public class ChatSystem : MonoBehaviour, IOnEventCallback
         tex.Apply();
         return Sprite.Create(tex, new Rect(0f, 0f, size, size), new Vector2(0.5f, 0.5f), 100f);
     }
-    private static Sprite MakeSendIcon(int size)
+    public static Sprite MakeSendIcon(int size)
     {
         Texture2D tex = NewTex(size);
         Color[] px = new Color[size * size];
