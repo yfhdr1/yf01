@@ -31,6 +31,9 @@ public class ChatSystem : MonoBehaviour, IOnEventCallback
     private Sprite ringSprite;
     private Sprite gradSprite;
     private Image iconRing;
+    private GameObject iconObject;
+    private GameObject loadingPanel;
+    private bool hiddenByLoading;
     private RectTransform floatBox;
     private GameObject badge;
     private GameObject panel;
@@ -77,7 +80,13 @@ public class ChatSystem : MonoBehaviour, IOnEventCallback
             rt.anchorMax = Vector2.one;
             rt.offsetMin = Vector2.zero;
             rt.offsetMax = Vector2.zero;
-            rt.SetSiblingIndex(menu.GetSiblingIndex());
+            int index = menu.GetSiblingIndex();
+            Transform loading = c.transform.Find("LoadingPanel");
+            if (loading != null && loading.GetSiblingIndex() < index)
+            {
+                index = loading.GetSiblingIndex();
+            }
+            rt.SetSiblingIndex(index);
             go.AddComponent<ChatSystem>();
             return;
         }
@@ -149,6 +158,11 @@ public class ChatSystem : MonoBehaviour, IOnEventCallback
         gradSprite = MakeGradientSprite();
         Build();
         SetOpen(false);
+        if (transform.parent != null)
+        {
+            Transform lp = transform.parent.Find("LoadingPanel");
+            loadingPanel = lp != null ? lp.gameObject : null;
+        }
     }
     private void Build()
     {
@@ -177,6 +191,7 @@ public class ChatSystem : MonoBehaviour, IOnEventCallback
         Place(dot.rectTransform, new Vector2(1f, 1f), new Vector2(0.5f, 0.5f), new Vector2(-10f, -10f), new Vector2(22f, 22f));
         badge = dot.gameObject;
         badge.SetActive(false);
+        iconObject = icon.gameObject;
         iconButton = icon.gameObject.AddComponent<Button>();
         iconButton.onClick.AddListener(Open);
         Image bg = AddImage(NewRect("ChatPanel", root), new Color(0f, 0f, 0f, 0.62f));
@@ -443,6 +458,21 @@ public class ChatSystem : MonoBehaviour, IOnEventCallback
     }
     private void LateUpdate()
     {
+        bool loading = loadingPanel != null && loadingPanel.activeInHierarchy;
+        if (loading != hiddenByLoading)
+        {
+            hiddenByLoading = loading;
+            if (loading)
+            {
+                SetOpen(false);
+                floatBox.gameObject.SetActive(false);
+            }
+            iconObject.SetActive(!loading);
+            if (!loading)
+            {
+                SetOpen(false);
+            }
+        }
         for (int i = floatLines.Count - 1; i >= 0; i--)
         {
             CanvasGroup g = floatLines[i];
