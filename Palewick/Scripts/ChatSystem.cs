@@ -12,13 +12,10 @@ public class ChatSystem : MonoBehaviour, IOnEventCallback
     private const int MaxHistory = 40;
     private const int MaxFloating = 4;
     private const int MaxChars = 80;
-    private const int BubbleWrap = 30;
     private const int FloatWrap = 38;
     private const float ShowTime = 8f;
     private const float FadeTime = 1.5f;
     private const float SendCooldown = 1f;
-    private const float PanelWidth = 760f;
-    private static readonly string[] TitleLabels = { "Chat", "الدردشة", "چات" };
     private static readonly string[] SendLabels = { "Send", "إرسال", "ناردن" };
     private static readonly string[] HintLabels = { "Enter message", "اكتب رسالة", "نامەیەک بنووسە" };
     private readonly Color blood = new Color(0.78f, 0.06f, 0.08f, 1f);
@@ -29,11 +26,12 @@ public class ChatSystem : MonoBehaviour, IOnEventCallback
     private readonly List<float> floatTimes = new List<float>();
     private Font latinFont;
     private Font rtlFont;
-    private Sprite roundSprite;
     private Sprite circleSprite;
     private Sprite bubbleSprite;
+    private Sprite ringSprite;
+    private Sprite gradSprite;
+    private Image iconRing;
     private RectTransform floatBox;
-    private GameObject iconObj;
     private GameObject badge;
     private GameObject panel;
     private RectTransform content;
@@ -42,11 +40,9 @@ public class ChatSystem : MonoBehaviour, IOnEventCallback
     private Text inputText;
     private Text preview;
     private Text placeholder;
-    private Text titleText;
     private Text sendText;
     private Button iconButton;
     private Button sendButton;
-    private Button collapseButton;
     private bool isOpen;
     private bool callbacksAdded;
     private bool scrollPending;
@@ -117,10 +113,6 @@ public class ChatSystem : MonoBehaviour, IOnEventCallback
         {
             iconButton.onClick.RemoveListener(Open);
         }
-        if (collapseButton != null)
-        {
-            collapseButton.onClick.RemoveListener(Close);
-        }
         if (sendButton != null)
         {
             sendButton.onClick.RemoveListener(Send);
@@ -130,9 +122,10 @@ public class ChatSystem : MonoBehaviour, IOnEventCallback
             input.onValueChanged.RemoveListener(OnTyping);
             input.onEndEdit.RemoveListener(OnEndEdit);
         }
-        DestroySprite(roundSprite);
         DestroySprite(circleSprite);
         DestroySprite(bubbleSprite);
+        DestroySprite(ringSprite);
+        DestroySprite(gradSprite);
     }
     private static void DestroySprite(Sprite s)
     {
@@ -150,9 +143,10 @@ public class ChatSystem : MonoBehaviour, IOnEventCallback
         {
             rtlFont = latinFont;
         }
-        roundSprite = MakeRoundSprite(64, 22);
         circleSprite = MakeRoundSprite(128, 64);
         bubbleSprite = MakeBubbleIcon(128);
+        ringSprite = MakeRingSprite(128, 4f);
+        gradSprite = MakeGradientSprite();
         Build();
         SetOpen(false);
     }
@@ -160,52 +154,74 @@ public class ChatSystem : MonoBehaviour, IOnEventCallback
     {
         RectTransform root = (RectTransform)transform;
         floatBox = NewRect("ChatFloat", root);
-        Place(floatBox, new Vector2(0f, 0.5f), new Vector2(0f, 0f), new Vector2(28f, 10f), new Vector2(700f, 230f));
+        Place(floatBox, new Vector2(0f, 0.5f), new Vector2(0f, 0f), new Vector2(130f, 40f), new Vector2(640f, 250f));
         VerticalLayoutGroup fv = floatBox.gameObject.AddComponent<VerticalLayoutGroup>();
         fv.childAlignment = TextAnchor.LowerLeft;
         fv.childControlWidth = true;
         fv.childControlHeight = true;
         fv.childForceExpandWidth = false;
         fv.childForceExpandHeight = false;
-        fv.spacing = 6f;
-        Image icon = AddImage(NewRect("ChatIcon", root), new Color(0.78f, 0.06f, 0.08f, 0.8f));
+        fv.spacing = 4f;
+        Image icon = AddImage(NewRect("ChatIcon", root), new Color(0f, 0f, 0f, 0.45f));
         icon.sprite = circleSprite;
         icon.raycastTarget = true;
-        iconObj = icon.gameObject;
-        Place(icon.rectTransform, new Vector2(0f, 1f), new Vector2(0.5f, 0.5f), new Vector2(80f, -200f), new Vector2(96f, 96f));
-        Image inner = AddImage(NewRect("Inner", icon.rectTransform), new Color(0.03f, 0.025f, 0.03f, 0.85f));
-        inner.sprite = circleSprite;
-        Stretch(inner.rectTransform, Vector2.zero, Vector2.one, new Vector2(4f, 4f), new Vector2(-4f, -4f));
-        Image glyph = AddImage(NewRect("Glyph", icon.rectTransform), bone);
+        Place(icon.rectTransform, new Vector2(0f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(66f, 150f), new Vector2(88f, 88f));
+        iconRing = AddImage(NewRect("Ring", icon.rectTransform), new Color(1f, 1f, 1f, 0.35f));
+        iconRing.sprite = ringSprite;
+        Stretch(iconRing.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+        Image glyph = AddImage(NewRect("Glyph", icon.rectTransform), new Color(1f, 1f, 1f, 0.92f));
         glyph.sprite = bubbleSprite;
-        Stretch(glyph.rectTransform, Vector2.zero, Vector2.one, new Vector2(18f, 18f), new Vector2(-18f, -18f));
+        Stretch(glyph.rectTransform, Vector2.zero, Vector2.one, new Vector2(20f, 20f), new Vector2(-20f, -20f));
         Image dot = AddImage(NewRect("Badge", icon.rectTransform), new Color(1f, 0.15f, 0.15f, 1f));
         dot.sprite = circleSprite;
-        Place(dot.rectTransform, new Vector2(1f, 1f), new Vector2(0.5f, 0.5f), new Vector2(-12f, -12f), new Vector2(26f, 26f));
+        Place(dot.rectTransform, new Vector2(1f, 1f), new Vector2(0.5f, 0.5f), new Vector2(-10f, -10f), new Vector2(22f, 22f));
         badge = dot.gameObject;
         badge.SetActive(false);
         iconButton = icon.gameObject.AddComponent<Button>();
         iconButton.onClick.AddListener(Open);
-        Image bg = AddImage(NewRect("ChatPanel", root), new Color(0.02f, 0.018f, 0.022f, 0.88f));
+        Image bg = AddImage(NewRect("ChatPanel", root), new Color(0f, 0f, 0f, 0.62f));
+        bg.sprite = gradSprite;
         bg.raycastTarget = true;
         panel = bg.gameObject;
         RectTransform prt = bg.rectTransform;
-        prt.anchorMin = new Vector2(0f, 0f);
-        prt.anchorMax = new Vector2(0f, 1f);
-        prt.pivot = new Vector2(0f, 0.5f);
-        prt.sizeDelta = new Vector2(PanelWidth, 0f);
-        prt.anchoredPosition = Vector2.zero;
-        Image edge = AddImage(NewRect("Edge", prt), new Color(0.45f, 0.05f, 0.07f, 1f));
-        Stretch(edge.rectTransform, new Vector2(1f, 0f), Vector2.one, new Vector2(-3f, 0f), Vector2.zero);
-        Image head = AddImage(NewRect("Header", prt), new Color(0.07f, 0.06f, 0.065f, 1f));
-        Stretch(head.rectTransform, new Vector2(0f, 1f), Vector2.one, new Vector2(0f, -86f), new Vector2(-3f, 0f));
-        Image headLine = AddImage(NewRect("Line", head.rectTransform), blood);
-        Stretch(headLine.rectTransform, Vector2.zero, new Vector2(1f, 0f), Vector2.zero, new Vector2(0f, 3f));
-        titleText = MakeText(head.rectTransform, "", 34, TextAnchor.MiddleCenter, bone);
-        titleText.fontStyle = FontStyle.Bold;
-        Stretch(titleText.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+        Place(prt, new Vector2(0f, 0.5f), new Vector2(0f, 1f), new Vector2(122f, 196f), new Vector2(700f, 420f));
+        Image bar = AddImage(NewRect("InputBar", prt), new Color(0f, 0f, 0f, 0.55f));
+        Stretch(bar.rectTransform, new Vector2(0f, 1f), Vector2.one, new Vector2(0f, -76f), Vector2.zero);
+        Image fieldBg = AddImage(NewRect("Field", bar.rectTransform), new Color(1f, 1f, 1f, 0.12f));
+        fieldBg.raycastTarget = true;
+        Stretch(fieldBg.rectTransform, Vector2.zero, Vector2.one, new Vector2(10f, 10f), new Vector2(-150f, -10f));
+        Image fieldLine = AddImage(NewRect("Line", fieldBg.rectTransform), new Color(1f, 1f, 1f, 0.35f));
+        Stretch(fieldLine.rectTransform, Vector2.zero, new Vector2(1f, 0f), Vector2.zero, new Vector2(0f, 2f));
+        inputText = MakeText(fieldBg.rectTransform, "", 26, TextAnchor.MiddleLeft, Color.white);
+        inputText.supportRichText = false;
+        inputText.horizontalOverflow = HorizontalWrapMode.Wrap;
+        Stretch(inputText.rectTransform, Vector2.zero, Vector2.one, new Vector2(16f, 0f), new Vector2(-16f, 0f));
+        placeholder = MakeText(fieldBg.rectTransform, "", 24, TextAnchor.MiddleLeft, new Color(1f, 1f, 1f, 0.5f));
+        Stretch(placeholder.rectTransform, Vector2.zero, Vector2.one, new Vector2(16f, 0f), new Vector2(-16f, 0f));
+        preview = MakeText(fieldBg.rectTransform, "", 26, TextAnchor.MiddleRight, Color.white);
+        preview.font = rtlFont;
+        preview.supportRichText = false;
+        Stretch(preview.rectTransform, Vector2.zero, Vector2.one, new Vector2(16f, 0f), new Vector2(-16f, 0f));
+        input = fieldBg.gameObject.AddComponent<InputField>();
+        input.textComponent = inputText;
+        input.placeholder = placeholder;
+        input.characterLimit = MaxChars;
+        input.lineType = InputField.LineType.SingleLine;
+        input.shouldHideMobileInput = false;
+        input.customCaretColor = true;
+        input.caretColor = Color.white;
+        input.onValueChanged.AddListener(OnTyping);
+        input.onEndEdit.AddListener(OnEndEdit);
+        Image sendBg = AddImage(NewRect("Send", bar.rectTransform), blood);
+        sendBg.raycastTarget = true;
+        Stretch(sendBg.rectTransform, new Vector2(1f, 0f), Vector2.one, new Vector2(-136f, 10f), new Vector2(-10f, -10f));
+        sendText = MakeText(sendBg.rectTransform, "", 26, TextAnchor.MiddleCenter, Color.white);
+        sendText.fontStyle = FontStyle.Bold;
+        Stretch(sendText.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+        sendButton = sendBg.gameObject.AddComponent<Button>();
+        sendButton.onClick.AddListener(Send);
         RectTransform view = NewRect("Messages", prt);
-        Stretch(view, Vector2.zero, Vector2.one, new Vector2(0f, 112f), new Vector2(-3f, -90f));
+        Stretch(view, Vector2.zero, Vector2.one, new Vector2(0f, 8f), new Vector2(0f, -82f));
         Image hit = AddImage(view, new Color(0f, 0f, 0f, 0.001f));
         hit.raycastTarget = true;
         view.gameObject.AddComponent<RectMask2D>();
@@ -221,8 +237,8 @@ public class ChatSystem : MonoBehaviour, IOnEventCallback
         cv.childControlHeight = true;
         cv.childForceExpandWidth = true;
         cv.childForceExpandHeight = false;
-        cv.spacing = 10f;
-        cv.padding = new RectOffset(0, 0, 14, 14);
+        cv.spacing = 6f;
+        cv.padding = new RectOffset(16, 16, 6, 6);
         ContentSizeFitter fit = content.gameObject.AddComponent<ContentSizeFitter>();
         fit.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
         scroll = view.gameObject.AddComponent<ScrollRect>();
@@ -232,53 +248,6 @@ public class ChatSystem : MonoBehaviour, IOnEventCallback
         scroll.vertical = true;
         scroll.movementType = ScrollRect.MovementType.Clamped;
         scroll.scrollSensitivity = 30f;
-        Image bar = AddImage(NewRect("InputBar", prt), new Color(0.06f, 0.055f, 0.06f, 1f));
-        Stretch(bar.rectTransform, Vector2.zero, new Vector2(1f, 0f), Vector2.zero, new Vector2(-3f, 108f));
-        Image fieldBg = AddImage(NewRect("Field", bar.rectTransform), new Color(0.15f, 0.14f, 0.14f, 1f));
-        fieldBg.sprite = roundSprite;
-        fieldBg.type = Image.Type.Sliced;
-        fieldBg.raycastTarget = true;
-        Stretch(fieldBg.rectTransform, Vector2.zero, Vector2.one, new Vector2(20f, 18f), new Vector2(-196f, -18f));
-        inputText = MakeText(fieldBg.rectTransform, "", 28, TextAnchor.MiddleLeft, bone);
-        inputText.supportRichText = false;
-        inputText.horizontalOverflow = HorizontalWrapMode.Wrap;
-        Stretch(inputText.rectTransform, Vector2.zero, Vector2.one, new Vector2(20f, 0f), new Vector2(-20f, 0f));
-        placeholder = MakeText(fieldBg.rectTransform, "", 26, TextAnchor.MiddleLeft, ash);
-        Stretch(placeholder.rectTransform, Vector2.zero, Vector2.one, new Vector2(20f, 0f), new Vector2(-20f, 0f));
-        preview = MakeText(fieldBg.rectTransform, "", 28, TextAnchor.MiddleRight, bone);
-        preview.font = rtlFont;
-        preview.supportRichText = false;
-        Stretch(preview.rectTransform, Vector2.zero, Vector2.one, new Vector2(20f, 0f), new Vector2(-20f, 0f));
-        input = fieldBg.gameObject.AddComponent<InputField>();
-        input.textComponent = inputText;
-        input.placeholder = placeholder;
-        input.characterLimit = MaxChars;
-        input.lineType = InputField.LineType.SingleLine;
-        input.shouldHideMobileInput = false;
-        input.customCaretColor = true;
-        input.caretColor = bone;
-        input.onValueChanged.AddListener(OnTyping);
-        input.onEndEdit.AddListener(OnEndEdit);
-        Image sendBg = AddImage(NewRect("Send", bar.rectTransform), blood);
-        sendBg.sprite = roundSprite;
-        sendBg.type = Image.Type.Sliced;
-        sendBg.raycastTarget = true;
-        Stretch(sendBg.rectTransform, new Vector2(1f, 0f), Vector2.one, new Vector2(-176f, 18f), new Vector2(-20f, -18f));
-        sendText = MakeText(sendBg.rectTransform, "", 30, TextAnchor.MiddleCenter, Color.white);
-        sendText.fontStyle = FontStyle.Bold;
-        Stretch(sendText.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
-        sendButton = sendBg.gameObject.AddComponent<Button>();
-        sendButton.onClick.AddListener(Send);
-        Image tab = AddImage(NewRect("Collapse", prt), new Color(0.07f, 0.06f, 0.065f, 0.95f));
-        tab.sprite = roundSprite;
-        tab.type = Image.Type.Sliced;
-        tab.raycastTarget = true;
-        Place(tab.rectTransform, new Vector2(1f, 0.5f), new Vector2(0f, 0.5f), new Vector2(-14f, 0f), new Vector2(60f, 140f));
-        Text arrow = MakeText(tab.rectTransform, "<", 40, TextAnchor.MiddleCenter, bone);
-        arrow.fontStyle = FontStyle.Bold;
-        Stretch(arrow.rectTransform, Vector2.zero, Vector2.one, new Vector2(10f, 0f), Vector2.zero);
-        collapseButton = tab.gameObject.AddComponent<Button>();
-        collapseButton.onClick.AddListener(Close);
         ApplyLanguage();
     }
     private void ApplyLanguage()
@@ -286,21 +255,15 @@ public class ChatSystem : MonoBehaviour, IOnEventCallback
         int lang = Lang();
         builtLang = lang;
         Font f = lang == 0 ? latinFont : rtlFont;
-        titleText.font = f;
         sendText.font = f;
         placeholder.font = f;
-        titleText.text = lang == 0 ? TitleLabels[0] : PwRtl.Visual(TitleLabels[lang]);
         sendText.text = lang == 0 ? SendLabels[0] : PwRtl.Visual(SendLabels[lang]);
         placeholder.text = lang == 0 ? HintLabels[0] : PwRtl.Visual(HintLabels[lang]);
         placeholder.alignment = lang == 0 ? TextAnchor.MiddleLeft : TextAnchor.MiddleRight;
     }
     private void Open()
     {
-        SetOpen(true);
-    }
-    private void Close()
-    {
-        SetOpen(false);
+        SetOpen(!isOpen);
     }
     private void SetOpen(bool open)
     {
@@ -310,8 +273,8 @@ public class ChatSystem : MonoBehaviour, IOnEventCallback
             ApplyLanguage();
         }
         panel.SetActive(open);
-        iconObj.SetActive(!open);
         floatBox.gameObject.SetActive(!open);
+        iconRing.color = open ? new Color(0.9f, 0.1f, 0.12f, 0.95f) : new Color(1f, 1f, 1f, 0.35f);
         if (open)
         {
             badge.SetActive(false);
@@ -407,36 +370,12 @@ public class ChatSystem : MonoBehaviour, IOnEventCallback
     }
     private void AddHistoryRow(string nick, string msg, bool mine)
     {
-        bool rtl = HasRtl(msg);
-        RectTransform row = NewRect("Msg", content);
-        VerticalLayoutGroup rv = row.gameObject.AddComponent<VerticalLayoutGroup>();
-        rv.childAlignment = mine ? TextAnchor.UpperRight : TextAnchor.UpperLeft;
-        rv.childControlWidth = true;
-        rv.childControlHeight = true;
-        rv.childForceExpandWidth = false;
-        rv.childForceExpandHeight = false;
-        rv.spacing = 4f;
-        rv.padding = new RectOffset(24, 90, 0, 0);
-        if (mine)
-        {
-            rv.padding = new RectOffset(90, 24, 0, 0);
-        }
-        Text name = MakeText(row, Shape(nick), 22, mine ? TextAnchor.MiddleRight : TextAnchor.MiddleLeft, mine ? new Color(0.91f, 0.75f, 0.48f, 1f) : new Color(1f, 0.3f, 0.3f, 1f));
-        name.font = HasRtl(nick) ? rtlFont : latinFont;
-        name.supportRichText = false;
-        Image bubble = AddImage(NewRect("Bubble", row), mine ? new Color(0.42f, 0.05f, 0.07f, 0.95f) : new Color(0.17f, 0.16f, 0.16f, 0.95f));
-        bubble.sprite = roundSprite;
-        bubble.type = Image.Type.Sliced;
-        HorizontalLayoutGroup bh = bubble.gameObject.AddComponent<HorizontalLayoutGroup>();
-        bh.childControlWidth = true;
-        bh.childControlHeight = true;
-        bh.childForceExpandWidth = false;
-        bh.childForceExpandHeight = false;
-        bh.padding = new RectOffset(20, 20, 12, 12);
-        Text body = MakeText(bubble.rectTransform, WrapShape(msg, BubbleWrap), 27, rtl ? TextAnchor.UpperRight : TextAnchor.UpperLeft, bone);
-        body.font = rtl ? rtlFont : latinFont;
-        body.supportRichText = false;
-        historyRows.Add(row.gameObject);
+        Text t = MakeText(content, BuildLine(nick, msg, mine, 44), 25, HasRtl(msg) || HasRtl(nick) ? TextAnchor.MiddleRight : TextAnchor.MiddleLeft, Color.white);
+        t.font = HasRtl(msg) || HasRtl(nick) ? rtlFont : latinFont;
+        Shadow sh = t.gameObject.AddComponent<Shadow>();
+        sh.effectColor = new Color(0f, 0f, 0f, 0.8f);
+        sh.effectDistance = new Vector2(1.5f, -1.5f);
+        historyRows.Add(t.gameObject);
         while (historyRows.Count > MaxHistory)
         {
             if (historyRows[0] != null)
@@ -446,24 +385,12 @@ public class ChatSystem : MonoBehaviour, IOnEventCallback
             historyRows.RemoveAt(0);
         }
     }
-    private void AddFloatLine(string nick, string msg, bool mine)
+    private string BuildLine(string nick, string msg, bool mine, int wrap)
     {
         bool rtl = HasRtl(msg) || HasRtl(nick);
-        Image strip = AddImage(NewRect("Line", floatBox), new Color(0f, 0f, 0f, 0.5f));
-        strip.sprite = roundSprite;
-        strip.type = Image.Type.Sliced;
-        HorizontalLayoutGroup sh = strip.gameObject.AddComponent<HorizontalLayoutGroup>();
-        sh.childControlWidth = true;
-        sh.childControlHeight = true;
-        sh.childForceExpandWidth = false;
-        sh.childForceExpandHeight = false;
-        sh.padding = new RectOffset(16, 16, 6, 6);
-        CanvasGroup group = strip.gameObject.AddComponent<CanvasGroup>();
-        group.blocksRaycasts = false;
-        group.interactable = false;
-        string nameColor = mine ? "#E8C07A" : "#FF4D4D";
+        string nameColor = mine ? "#FFC266" : "#FF5A5A";
         string name = "<color=" + nameColor + ">" + Shape(nick) + "</color>";
-        List<string> parts = Wrap(msg, FloatWrap);
+        List<string> parts = Wrap(msg, wrap);
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < parts.Count; i++)
         {
@@ -474,15 +401,34 @@ public class ChatSystem : MonoBehaviour, IOnEventCallback
             string part = Shape(parts[i]);
             if (i == 0)
             {
-                sb.Append(rtl ? part + "  :" + name : name + ":  " + part);
+                sb.Append(rtl ? part + " :" + name : name + ": " + part);
             }
             else
             {
                 sb.Append(part);
             }
         }
-        Text t = MakeText(strip.rectTransform, sb.ToString(), 25, rtl ? TextAnchor.MiddleRight : TextAnchor.MiddleLeft, bone);
+        return sb.ToString();
+    }
+    private void AddFloatLine(string nick, string msg, bool mine)
+    {
+        bool rtl = HasRtl(msg) || HasRtl(nick);
+        Image strip = AddImage(NewRect("Line", floatBox), new Color(0f, 0f, 0f, 0.6f));
+        strip.sprite = gradSprite;
+        HorizontalLayoutGroup sh = strip.gameObject.AddComponent<HorizontalLayoutGroup>();
+        sh.childControlWidth = true;
+        sh.childControlHeight = true;
+        sh.childForceExpandWidth = false;
+        sh.childForceExpandHeight = false;
+        sh.padding = new RectOffset(14, 70, 5, 5);
+        CanvasGroup group = strip.gameObject.AddComponent<CanvasGroup>();
+        group.blocksRaycasts = false;
+        group.interactable = false;
+        Text t = MakeText(strip.rectTransform, BuildLine(nick, msg, mine, FloatWrap), 24, rtl ? TextAnchor.MiddleRight : TextAnchor.MiddleLeft, Color.white);
         t.font = rtl ? rtlFont : latinFont;
+        Shadow shadow = t.gameObject.AddComponent<Shadow>();
+        shadow.effectColor = new Color(0f, 0f, 0f, 0.8f);
+        shadow.effectDistance = new Vector2(1.5f, -1.5f);
         floatLines.Add(group);
         floatTimes.Add(Time.unscaledTime);
         while (floatLines.Count > MaxFloating)
@@ -531,20 +477,6 @@ public class ChatSystem : MonoBehaviour, IOnEventCallback
     private static string Shape(string s)
     {
         return HasRtl(s) ? PwRtl.Visual(s) : s;
-    }
-    private static string WrapShape(string s, int max)
-    {
-        List<string> parts = Wrap(s, max);
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < parts.Count; i++)
-        {
-            if (i > 0)
-            {
-                sb.Append('\n');
-            }
-            sb.Append(Shape(parts[i]));
-        }
-        return sb.ToString();
     }
     private static List<string> Wrap(string text, int max)
     {
@@ -678,6 +610,47 @@ public class ChatSystem : MonoBehaviour, IOnEventCallback
         tex.SetPixels(px);
         tex.Apply();
         return Sprite.Create(tex, new Rect(0f, 0f, size, size), new Vector2(0.5f, 0.5f), 100f);
+    }
+    private static Sprite MakeRingSprite(int size, float width)
+    {
+        Texture2D tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+        tex.wrapMode = TextureWrapMode.Clamp;
+        tex.filterMode = FilterMode.Bilinear;
+        Color[] px = new Color[size * size];
+        float r = size * 0.5f;
+        for (int y = 0; y < size; y++)
+        {
+            for (int x = 0; x < size; x++)
+            {
+                float d = Vector2.Distance(new Vector2(x + 0.5f, y + 0.5f), new Vector2(r, r));
+                float a = Mathf.Clamp01(r - d + 0.5f) * Mathf.Clamp01(d - (r - width) + 0.5f);
+                px[y * size + x] = new Color(1f, 1f, 1f, a);
+            }
+        }
+        tex.SetPixels(px);
+        tex.Apply();
+        return Sprite.Create(tex, new Rect(0f, 0f, size, size), new Vector2(0.5f, 0.5f), 100f);
+    }
+    private static Sprite MakeGradientSprite()
+    {
+        const int w = 256;
+        const int h = 4;
+        Texture2D tex = new Texture2D(w, h, TextureFormat.RGBA32, false);
+        tex.wrapMode = TextureWrapMode.Clamp;
+        tex.filterMode = FilterMode.Bilinear;
+        Color[] px = new Color[w * h];
+        for (int x = 0; x < w; x++)
+        {
+            float t = x / (float)(w - 1);
+            float a = t < 0.55f ? 1f : Mathf.Clamp01(1f - (t - 0.55f) / 0.45f);
+            for (int y = 0; y < h; y++)
+            {
+                px[y * w + x] = new Color(1f, 1f, 1f, a);
+            }
+        }
+        tex.SetPixels(px);
+        tex.Apply();
+        return Sprite.Create(tex, new Rect(0f, 0f, w, h), new Vector2(0.5f, 0.5f), 100f);
     }
     private static bool InTriangle(Vector2 p, Vector2 a, Vector2 b, Vector2 c)
     {
