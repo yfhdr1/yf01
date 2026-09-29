@@ -17,14 +17,16 @@ public class PauseMenuPUBG : MonoBehaviour
     private const string ResKey = "pw_res";
     private const float OpenTime = 0.25f;
     private const float CloseTime = 0.18f;
+    private const float RowH = 64f;
     private static readonly string[] LevelKeys = { "low", "medium", "high", "ultra", "ultimate" };
     private static readonly string[] LevelNames = { "SMOOTH", "BALANCED", "HD", "ULTRA", "ULTIMATE" };
+    private static readonly string[] LevelTitles = { "Smooth", "Balanced", "HD", "Ultra", "Ultimate" };
+    private static readonly string[] TabTitles = { "Controls", "Basic", "Audio", "Graphics" };
+    private static readonly string[] SubTitles = { "Sensitivity", "Display", "Sound", "Graphics" };
     private static readonly int[] FpsOptions = { 30, 45, 60, 90, 120, 144, 165, 185 };
     private static readonly int[] ResSteps = { 720, 1080, 1440 };
     private static int nativeLong;
     private static int nativeShort;
-    private static readonly string[] GfxSpriteNames = { "Btn_Smooth", "Btn_Balanced", "Btn_HD", "Btn_Ultra", "Btn_Ultimate" };
-    [SerializeField] private Sprite[] buttonSprites = new Sprite[0];
     private static int currentSlot = 1;
     private PostProcessLayer ppLayer;
     private PostProcessVolume ppVolume;
@@ -36,26 +38,38 @@ public class PauseMenuPUBG : MonoBehaviour
     private Coroutine animRoutine;
     private readonly GameObject[] pages = new GameObject[4];
     private readonly Button[] tabs = new Button[4];
+    private readonly Image[] tabAccents = new Image[4];
     private readonly Button[] gfxButtons = new Button[5];
     private readonly Button[] fpsButtons = new Button[8];
     private readonly Button[] resButtons = new Button[4];
     private readonly List<int> resValues = new List<int>();
-    private GameObject fpsLabel;
-    private GameObject resLabel;
-    private bool gfxLayoutDone;
+    private readonly Dictionary<Button, Image> segFills = new Dictionary<Button, Image>();
+    private Text fpsHeader;
+    private Text resHeader;
+    private Text subTabText;
+    private Font uiFont;
     private int frameCount;
     private float frameTime;
+    private int measuredFps;
     private Slider sensitivitySlider;
     private Slider volumeSlider;
     private Slider brightnessSlider;
     private Image brightnessOverlay;
     private Color baseAmbient;
-    private readonly Color tabOn = new Color(0.13f, 0.14f, 0.16f, 1f);
-    private readonly Color tabOff = new Color(0.055f, 0.065f, 0.075f, 1f);
-    private readonly Color gfxOn = new Color(0.95f, 0.66f, 0f, 1f);
-    private readonly Color gfxOff = new Color(0.24f, 0.25f, 0.27f, 1f);
-    private readonly Color textOn = new Color(0.95f, 0.66f, 0f, 1f);
-    private readonly Color textOff = Color.white;
+    private readonly Color accent = new Color(0.86f, 0.13f, 0.16f, 1f);
+    private readonly Color boxColor = new Color(0.075f, 0.08f, 0.09f, 0.97f);
+    private readonly Color contentColor = new Color(0.12f, 0.125f, 0.14f, 0.92f);
+    private readonly Color sideColor = new Color(0.045f, 0.05f, 0.06f, 1f);
+    private readonly Color tabOn = new Color(0.24f, 0.06f, 0.08f, 1f);
+    private readonly Color tabOff = new Color(0.065f, 0.07f, 0.085f, 1f);
+    private readonly Color lineColor = new Color(0.2f, 0.21f, 0.24f, 1f);
+    private readonly Color borderOff = new Color(0.42f, 0.44f, 0.48f, 1f);
+    private readonly Color fillOff = new Color(0.09f, 0.095f, 0.11f, 0.95f);
+    private readonly Color fillOn = new Color(0.5f, 0.05f, 0.08f, 0.95f);
+    private readonly Color borderDis = new Color(0.2f, 0.21f, 0.23f, 1f);
+    private readonly Color fillDis = new Color(0.055f, 0.06f, 0.07f, 0.9f);
+    private readonly Color textOff = new Color(0.8f, 0.82f, 0.85f, 1f);
+    private readonly Color textDis = new Color(0.3f, 0.31f, 0.34f, 1f);
     private readonly List<KeyValuePair<Button, UnityAction>> buttonBindings = new List<KeyValuePair<Button, UnityAction>>();
     private readonly List<KeyValuePair<Slider, UnityAction<float>>> sliderBindings = new List<KeyValuePair<Slider, UnityAction<float>>>();
     private readonly Dictionary<GameObject, bool> hudStates = new Dictionary<GameObject, bool>();
@@ -99,11 +113,11 @@ public class PauseMenuPUBG : MonoBehaviour
         gfxButtons[1] = FindButton("GfxMedium");
         gfxButtons[2] = FindButton("GfxHigh");
         gfxButtons[3] = FindButton("GfxUltra");
-        BuildExtraGraphicsUI();
-        ApplyButtonSprites();
         sensitivitySlider = FindSlider("SensitivitySlider");
         volumeSlider = FindSlider("VolumeSlider");
         brightnessSlider = FindSlider("BrightnessSlider");
+        BuildExtraButtons();
+        ApplySkin();
         GameObject overlay = FindChild(transform.parent, "BrightnessOverlay");
         if (overlay != null)
         {
@@ -118,11 +132,11 @@ public class PauseMenuPUBG : MonoBehaviour
         BindButton(tabs[1], () => SelectTab(1));
         BindButton(tabs[2], () => SelectTab(2));
         BindButton(tabs[3], () => SelectTab(3));
-        BindButton(gfxButtons[0], () => SetGraphics(LevelKeys[0]));
-        BindButton(gfxButtons[1], () => SetGraphics(LevelKeys[1]));
-        BindButton(gfxButtons[2], () => SetGraphics(LevelKeys[2]));
-        BindButton(gfxButtons[3], () => SetGraphics(LevelKeys[3]));
-        BindButton(gfxButtons[4], () => SetGraphics(LevelKeys[4]));
+        for (int i = 0; i < gfxButtons.Length; i++)
+        {
+            string key = LevelKeys[i];
+            BindButton(gfxButtons[i], () => SetGraphics(key));
+        }
         for (int i = 0; i < fpsButtons.Length; i++)
         {
             int fpsValue = FpsOptions[i];
@@ -135,6 +149,7 @@ public class PauseMenuPUBG : MonoBehaviour
         }
         BindButton(FindButton("ExitButton"), ExitToLobby);
         BindButton(FindButton("ResumeButton"), () => SetPaused(false));
+        BindButton(FindButton("CloseX"), () => SetPaused(false));
         float sens = PlayerPrefs.GetFloat(SensKey, 0.15f);
         float vol = PlayerPrefs.GetFloat(AudioKey, 1f);
         float bright = PlayerPrefs.GetFloat(BrightKey, 1f);
@@ -159,6 +174,9 @@ public class PauseMenuPUBG : MonoBehaviour
             brightnessSlider.value = bright;
             BindSlider(brightnessSlider, SetBrightness);
         }
+        SkinSliderValue(sensitivitySlider);
+        SkinSliderValue(volumeSlider);
+        SkinSliderValue(brightnessSlider);
         AudioListener.volume = vol;
         ApplyBrightness(bright);
         string level = PlayerPrefs.GetString(GraphicsKey, LevelKeys[1]);
@@ -169,8 +187,9 @@ public class PauseMenuPUBG : MonoBehaviour
         ApplyDisplay(res, fps);
         HighlightFps(fps);
         HighlightRes(res);
+        UpdateHeaders();
     }
-    private void BuildExtraGraphicsUI()
+    private void BuildExtraButtons()
     {
         if (gfxButtons[0] == null || gfxButtons[3] == null)
         {
@@ -188,19 +207,7 @@ public class PauseMenuPUBG : MonoBehaviour
             ultimate = Instantiate(gfxButtons[3].gameObject, page);
             ultimate.name = "GfxUltimate";
         }
-        SetLabel(ultimate, "ULTIMATE");
         gfxButtons[4] = ultimate.GetComponent<Button>();
-        GameObject label = FindChild(page, "Label");
-        if (label != null)
-        {
-            fpsLabel = FindChild(page, "FpsLabel");
-            if (fpsLabel == null)
-            {
-                fpsLabel = Instantiate(label, page);
-                fpsLabel.name = "FpsLabel";
-            }
-            SetLabel(fpsLabel, "FPS");
-        }
         for (int i = 0; i < fpsButtons.Length; i++)
         {
             string fpsName = "Fps" + FpsOptions[i];
@@ -209,20 +216,8 @@ public class PauseMenuPUBG : MonoBehaviour
             {
                 go = Instantiate(gfxButtons[0].gameObject, page);
                 go.name = fpsName;
-                ResetClonedLook(go);
             }
-            SetLabel(go, FpsOptions[i].ToString());
             fpsButtons[i] = go.GetComponent<Button>();
-        }
-        if (label != null)
-        {
-            resLabel = FindChild(page, "ResLabel");
-            if (resLabel == null)
-            {
-                resLabel = Instantiate(label, page);
-                resLabel.name = "ResLabel";
-            }
-            SetLabel(resLabel, "RES");
         }
         resValues.Clear();
         resValues.AddRange(ResOptions());
@@ -243,287 +238,383 @@ public class PauseMenuPUBG : MonoBehaviour
             {
                 go = Instantiate(gfxButtons[0].gameObject, page);
                 go.name = resName;
-                ResetClonedLook(go);
             }
-            SetLabel(go, resValues[i] + "P");
             resButtons[i] = go.GetComponent<Button>();
         }
     }
-    private void ResetClonedLook(GameObject go)
+    private void ApplySkin()
     {
-        Image img = go.GetComponent<Image>();
-        if (img != null && IsCustomSprite(img))
+        Text anyText = GetComponentInChildren<Text>(true);
+        uiFont = anyText != null && anyText.font != null ? anyText.font : Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        HideChild("Separator");
+        HideChild("TitleLine");
+        HideChild("Watermark");
+        HideChild("TitleText");
+        HideChild("ResumeButton");
+        GameObject backdrop = FindChild(transform, "Backdrop");
+        if (backdrop != null)
         {
-            Sprite plain = null;
-            for (int i = 0; i < 4; i++)
+            Image bi = backdrop.GetComponent<Image>();
+            if (bi != null)
             {
-                if (gfxButtons[i] != null && gfxButtons[i].image != null && !IsCustomSprite(gfxButtons[i].image))
-                {
-                    plain = gfxButtons[i].image.sprite;
-                    break;
-                }
+                bi.color = new Color(0f, 0f, 0f, 0.65f);
             }
-            img.sprite = plain;
-            img.preserveAspect = false;
         }
-        Text t = go.GetComponentInChildren<Text>(true);
-        if (t != null)
-        {
-            t.gameObject.SetActive(true);
-        }
-        TMP_Text tm = go.GetComponentInChildren<TMP_Text>(true);
-        if (tm != null)
-        {
-            tm.gameObject.SetActive(true);
-        }
-    }
-    private void ApplyButtonSprites()
-    {
-        if (buttonSprites == null)
+        if (boxRect == null)
         {
             return;
         }
-        for (int i = 0; i < buttonSprites.Length; i++)
+        Stretch(boxRect, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+        Image boxImg = boxRect.GetComponent<Image>();
+        if (boxImg != null)
         {
-            Sprite sp = buttonSprites[i];
-            if (sp == null)
+            boxImg.sprite = null;
+            boxImg.type = Image.Type.Simple;
+            boxImg.color = boxColor;
+        }
+        RectTransform content = MakeImage("ContentBg", boxRect, contentColor);
+        Stretch(content, new Vector2(0.02f, 0f), new Vector2(0.81f, 1f), new Vector2(0f, 110f), new Vector2(0f, -104f));
+        content.SetAsFirstSibling();
+        RectTransform side = MakeImage("SideBar", boxRect, sideColor);
+        Stretch(side, new Vector2(0.83f, 0f), new Vector2(1f, 1f), Vector2.zero, new Vector2(0f, -106f));
+        side.SetAsFirstSibling();
+        RectTransform strip = MakeImage("SubLine", boxRect, lineColor);
+        Stretch(strip, new Vector2(0.02f, 1f), new Vector2(0.81f, 1f), new Vector2(0f, -92f), new Vector2(0f, -90f));
+        RectTransform sub = MakeImage("SubTab", boxRect, new Color(0.17f, 0.18f, 0.2f, 1f));
+        Place(sub, new Vector2(0.02f, 1f), new Vector2(0f, 1f), new Vector2(0f, -14f), new Vector2(280f, 76f));
+        RectTransform subLine = MakeImage("SubTabLine", sub, accent);
+        Stretch(subLine, Vector2.zero, new Vector2(1f, 0f), Vector2.zero, new Vector2(0f, 4f));
+        subTabText = MakeText("SubTabText", sub, "", 30, TextAnchor.MiddleCenter, Color.white, true);
+        Stretch(subTabText.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+        Text title = MakeText("SettingsTitle", boxRect, "Settings", 40, TextAnchor.MiddleRight, Color.white, true);
+        Place(title.rectTransform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-116f, -10f), new Vector2(320f, 86f));
+        Button close = FindButton("CloseX");
+        if (close == null)
+        {
+            RectTransform cr = MakeImage("CloseX", boxRect, new Color(1f, 1f, 1f, 0.001f));
+            close = cr.gameObject.AddComponent<Button>();
+            close.transition = Selectable.Transition.None;
+            Text x = MakeText("X", cr, "X", 54, TextAnchor.MiddleCenter, Color.white, false);
+            Stretch(x.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+        }
+        Place(close.GetComponent<RectTransform>(), new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-18f, -10f), new Vector2(86f, 86f));
+        for (int i = 0; i < tabs.Length; i++)
+        {
+            SkinTab(i);
+        }
+        for (int i = 0; i < pages.Length; i++)
+        {
+            if (pages[i] == null)
             {
                 continue;
             }
-            for (int g = 0; g < gfxButtons.Length; g++)
+            RectTransform pr = pages[i].GetComponent<RectTransform>();
+            Stretch(pr, new Vector2(0.02f, 0f), new Vector2(0.81f, 1f), new Vector2(30f, 130f), new Vector2(-30f, -124f));
+            GameObject label = FindChild(pages[i].transform, "Label");
+            if (label != null)
             {
-                if (sp.name == GfxSpriteNames[g])
-                {
-                    SetCustomSprite(gfxButtons[g], sp);
-                }
+                label.SetActive(false);
             }
-            for (int f = 0; f < fpsButtons.Length; f++)
+        }
+        SkinSliderPage(0, sensitivitySlider, "Sensitivity", "Camera look speed when dragging the screen.");
+        SkinSliderPage(1, brightnessSlider, "Brightness", "Adjust if the game looks too dark or too bright.");
+        SkinSliderPage(2, volumeSlider, "Volume", "Master volume for all game sounds.");
+        if (pages[3] != null)
+        {
+            RectTransform gp = pages[3].GetComponent<RectTransform>();
+            Text q = MakeHeader(gp, "QualityHeader", 0f);
+            q.text = HeaderText("Graphics", "Lower the setting if the device becomes too hot or the game becomes choppy.");
+            fpsHeader = MakeHeader(gp, "FpsHeader", -164f);
+            resHeader = MakeHeader(gp, "ResHeader", -328f);
+            for (int i = 0; i < gfxButtons.Length; i++)
             {
-                if (sp.name == "Btn_Fps" + FpsOptions[f])
-                {
-                    SetCustomSprite(fpsButtons[f], sp);
-                }
+                SkinSegment(gfxButtons[i], LevelTitles[i], i * 0.14f, (i + 1) * 0.14f, -56f);
             }
-            if (sp.name == "Btn_Blank")
+            for (int i = 0; i < fpsButtons.Length; i++)
             {
-                for (int r = 0; r < resButtons.Length; r++)
+                SkinSegment(fpsButtons[i], FpsOptions[i] + " FPS", i * 0.11f, (i + 1) * 0.11f, -220f);
+            }
+            for (int i = 0; i < resButtons.Length; i++)
+            {
+                if (resButtons[i] != null)
                 {
-                    SetBlankSprite(resButtons[r], sp);
+                    SkinSegment(resButtons[i], resValues[i] + "P", i * 0.14f, (i + 1) * 0.14f, -384f);
                 }
             }
         }
+        Button exit = FindButton("ExitButton");
+        if (exit != null)
+        {
+            RectTransform er = exit.GetComponent<RectTransform>();
+            Place(er, new Vector2(0.02f, 0f), new Vector2(0f, 0f), new Vector2(0f, 24f), new Vector2(300f, 70f));
+            SkinButtonBody(exit, "Leave Match", 28);
+            PaintSegment(exit, new Color(0.75f, 0.77f, 0.8f, 1f), fillOff, Color.white, true);
+            Text hint = MakeText("ExitHint", boxRect, "(Leave the match and return to the lobby.)", 22, TextAnchor.MiddleLeft, new Color(0.55f, 0.57f, 0.6f, 1f), false);
+            Place(hint.rectTransform, new Vector2(0.02f, 0f), new Vector2(0f, 0f), new Vector2(320f, 24f), new Vector2(1000f, 70f));
+        }
     }
-    private static void SetCustomSprite(Button button, Sprite sp)
+    private void SkinTab(int i)
     {
-        if (button == null || button.image == null)
+        if (tabs[i] == null)
         {
             return;
         }
-        button.image.sprite = sp;
-        button.image.type = Image.Type.Simple;
-        button.image.preserveAspect = true;
-        Text[] texts = button.GetComponentsInChildren<Text>(true);
-        for (int i = 0; i < texts.Length; i++)
+        RectTransform rt = tabs[i].GetComponent<RectTransform>();
+        float top = -110f - i * 98f;
+        rt.anchorMin = new Vector2(0.83f, 1f);
+        rt.anchorMax = new Vector2(1f, 1f);
+        rt.pivot = new Vector2(0.5f, 1f);
+        rt.offsetMin = new Vector2(0f, top - 96f);
+        rt.offsetMax = new Vector2(0f, top);
+        rt.localScale = Vector3.one;
+        tabs[i].transition = Selectable.Transition.None;
+        if (tabs[i].image != null)
         {
-            texts[i].gameObject.SetActive(false);
+            tabs[i].image.sprite = null;
+            tabs[i].image.type = Image.Type.Simple;
         }
-        TMP_Text[] tms = button.GetComponentsInChildren<TMP_Text>(true);
+        Transform old = rt.Find("TabAccent");
+        RectTransform acc = old != null ? old as RectTransform : MakeImage("TabAccent", rt, accent);
+        Stretch(acc, Vector2.zero, new Vector2(0f, 1f), Vector2.zero, new Vector2(7f, 0f));
+        tabAccents[i] = acc.GetComponent<Image>();
+        if (rt.Find("TabLine") == null)
+        {
+            RectTransform line = MakeImage("TabLine", rt, new Color(0.13f, 0.14f, 0.16f, 1f));
+            Stretch(line, Vector2.zero, new Vector2(1f, 0f), Vector2.zero, new Vector2(0f, 2f));
+        }
+        Text t = tabs[i].GetComponentInChildren<Text>(true);
+        if (t == null)
+        {
+            t = MakeText("Text", rt, "", 30, TextAnchor.MiddleCenter, textOff, false);
+        }
+        t.gameObject.SetActive(true);
+        StyleText(t, TabTitles[i], 30, TextAnchor.MiddleCenter);
+        Stretch(t.rectTransform, Vector2.zero, Vector2.one, new Vector2(10f, 0f), Vector2.zero);
+        HideTmp(tabs[i].gameObject);
+    }
+    private void SkinSliderPage(int page, Slider slider, string title, string hint)
+    {
+        if (pages[page] == null)
+        {
+            return;
+        }
+        RectTransform pr = pages[page].GetComponent<RectTransform>();
+        Text h = MakeHeader(pr, "Header", 0f);
+        h.text = HeaderText(title, hint);
+        if (slider == null)
+        {
+            return;
+        }
+        RectTransform sr = slider.GetComponent<RectTransform>();
+        sr.anchorMin = new Vector2(0f, 1f);
+        sr.anchorMax = new Vector2(0.62f, 1f);
+        sr.pivot = new Vector2(0f, 1f);
+        sr.offsetMin = new Vector2(0f, -124f);
+        sr.offsetMax = new Vector2(0f, -90f);
+        sr.localScale = Vector3.one;
+        Image bg = slider.GetComponent<Image>();
+        if (bg != null)
+        {
+            bg.sprite = null;
+            bg.type = Image.Type.Simple;
+            bg.color = new Color(0.22f, 0.23f, 0.26f, 1f);
+        }
+        if (slider.fillRect != null)
+        {
+            Image fill = slider.fillRect.GetComponent<Image>();
+            if (fill != null)
+            {
+                fill.sprite = null;
+                fill.type = Image.Type.Simple;
+                fill.color = accent;
+            }
+        }
+        if (slider.handleRect != null)
+        {
+            slider.handleRect.sizeDelta = new Vector2(30f, 24f);
+            Image handle = slider.handleRect.GetComponent<Image>();
+            if (handle != null)
+            {
+                handle.color = Color.white;
+            }
+        }
+        slider.transition = Selectable.Transition.None;
+        Text v = MakeText("Value", pr, "", 34, TextAnchor.MiddleLeft, Color.white, true);
+        v.rectTransform.anchorMin = new Vector2(0.65f, 1f);
+        v.rectTransform.anchorMax = new Vector2(0.85f, 1f);
+        v.rectTransform.pivot = new Vector2(0f, 1f);
+        v.rectTransform.offsetMin = new Vector2(0f, -137f);
+        v.rectTransform.offsetMax = new Vector2(0f, -77f);
+    }
+    private void SkinSliderValue(Slider slider)
+    {
+        if (slider == null)
+        {
+            return;
+        }
+        Transform vt = slider.transform.parent.Find("Value");
+        if (vt == null)
+        {
+            return;
+        }
+        Text v = vt.GetComponent<Text>();
+        UnityAction<float> show = value => v.text = Mathf.RoundToInt(Mathf.InverseLerp(slider.minValue, slider.maxValue, value) * 100f) + "%";
+        show(slider.value);
+        BindSlider(slider, show);
+    }
+    private Text MakeHeader(RectTransform page, string name, float y)
+    {
+        Transform old = page.Find(name);
+        Text h = old != null ? old.GetComponent<Text>() : MakeText(name, page, "", 30, TextAnchor.MiddleLeft, Color.white, false);
+        h.supportRichText = true;
+        h.rectTransform.anchorMin = new Vector2(0f, 1f);
+        h.rectTransform.anchorMax = new Vector2(1f, 1f);
+        h.rectTransform.pivot = new Vector2(0f, 1f);
+        h.rectTransform.offsetMin = new Vector2(0f, y - 50f);
+        h.rectTransform.offsetMax = new Vector2(0f, y);
+        return h;
+    }
+    private static string HeaderText(string title, string hint)
+    {
+        return "<b>" + title + "</b>  <size=22><color=#8C9099>(" + hint + ")</color></size>";
+    }
+    private void UpdateHeaders()
+    {
+        if (fpsHeader != null)
+        {
+            string now = measuredFps > 0 ? "Current: " + measuredFps + " FPS. " : "";
+            fpsHeader.text = HeaderText("Frame Rate", now + "Grey options are not supported by this screen.");
+        }
+        if (resHeader != null)
+        {
+            resHeader.text = HeaderText("Resolution", "Current: " + Mathf.Min(Screen.width, Screen.height) + "P. Lower resolution runs faster.");
+        }
+    }
+    private void SkinSegment(Button b, string label, float x0, float x1, float top)
+    {
+        if (b == null)
+        {
+            return;
+        }
+        RectTransform rt = b.GetComponent<RectTransform>();
+        rt.anchorMin = new Vector2(x0, 1f);
+        rt.anchorMax = new Vector2(x1, 1f);
+        rt.pivot = new Vector2(0.5f, 1f);
+        rt.offsetMin = new Vector2(-1f, top - RowH);
+        rt.offsetMax = new Vector2(1f, top);
+        rt.localScale = Vector3.one;
+        SkinButtonBody(b, label, 26);
+    }
+    private void SkinButtonBody(Button b, string label, int size)
+    {
+        b.transition = Selectable.Transition.None;
+        if (b.image != null)
+        {
+            b.image.sprite = null;
+            b.image.type = Image.Type.Simple;
+            b.image.preserveAspect = false;
+            b.image.color = borderOff;
+        }
+        RectTransform rt = b.GetComponent<RectTransform>();
+        Transform old = rt.Find("SegFill");
+        RectTransform fill = old != null ? old as RectTransform : MakeImage("SegFill", rt, fillOff);
+        Stretch(fill, Vector2.zero, Vector2.one, new Vector2(2f, 2f), new Vector2(-2f, -2f));
+        fill.SetAsFirstSibling();
+        segFills[b] = fill.GetComponent<Image>();
+        Text t = b.GetComponentInChildren<Text>(true);
+        if (t == null)
+        {
+            t = MakeText("Text", rt, "", size, TextAnchor.MiddleCenter, textOff, false);
+        }
+        t.gameObject.SetActive(true);
+        StyleText(t, label, size, TextAnchor.MiddleCenter);
+        Stretch(t.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+        t.transform.SetAsLastSibling();
+        HideTmp(b.gameObject);
+    }
+    private void StyleText(Text t, string value, int size, TextAnchor align)
+    {
+        t.text = value;
+        t.font = uiFont;
+        t.fontSize = size;
+        t.alignment = align;
+        t.resizeTextForBestFit = false;
+        t.horizontalOverflow = HorizontalWrapMode.Overflow;
+        t.verticalOverflow = VerticalWrapMode.Overflow;
+        t.raycastTarget = false;
+        t.rectTransform.localScale = Vector3.one;
+        Outline ol = t.GetComponent<Outline>();
+        if (ol != null)
+        {
+            ol.enabled = false;
+        }
+        Shadow sh = t.GetComponent<Shadow>();
+        if (sh != null)
+        {
+            sh.enabled = false;
+        }
+    }
+    private static void HideTmp(GameObject go)
+    {
+        TMP_Text[] tms = go.GetComponentsInChildren<TMP_Text>(true);
         for (int i = 0; i < tms.Length; i++)
         {
             tms[i].gameObject.SetActive(false);
         }
     }
-    private static void SetBlankSprite(Button button, Sprite sp)
+    private void HideChild(string name)
     {
-        if (button == null || button.image == null)
+        GameObject go = FindChild(transform, name);
+        if (go != null)
         {
-            return;
-        }
-        button.image.sprite = sp;
-        button.image.type = Image.Type.Simple;
-        button.image.preserveAspect = true;
-        Color gold = new Color(1f, 0.84f, 0.5f, 1f);
-        Text t = button.GetComponentInChildren<Text>(true);
-        if (t != null)
-        {
-            t.gameObject.SetActive(true);
-            t.color = gold;
-            t.fontStyle = FontStyle.Bold;
-            t.alignment = TextAnchor.MiddleCenter;
-            t.resizeTextForBestFit = false;
-            t.horizontalOverflow = HorizontalWrapMode.Overflow;
-            t.verticalOverflow = VerticalWrapMode.Overflow;
-            FitTextRect(t.rectTransform);
-        }
-        TMP_Text tm = button.GetComponentInChildren<TMP_Text>(true);
-        if (tm != null)
-        {
-            tm.gameObject.SetActive(true);
-            tm.color = gold;
-            tm.fontStyle = FontStyles.Bold;
-            tm.alignment = TextAlignmentOptions.Center;
-            tm.enableAutoSizing = false;
-            FitTextRect(tm.rectTransform);
+            go.SetActive(false);
         }
     }
-    private static void FitTextRect(RectTransform rt)
+    private RectTransform MakeImage(string name, Transform parent, Color color)
     {
-        rt.anchorMin = new Vector2(0.08f, 0.15f);
-        rt.anchorMax = new Vector2(0.92f, 0.85f);
-        rt.offsetMin = Vector2.zero;
-        rt.offsetMax = Vector2.zero;
+        Transform old = parent.Find(name);
+        if (old != null)
+        {
+            return old as RectTransform;
+        }
+        GameObject go = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        go.layer = parent.gameObject.layer;
+        RectTransform rt = go.GetComponent<RectTransform>();
+        rt.SetParent(parent, false);
+        Image img = go.GetComponent<Image>();
+        img.color = color;
+        img.raycastTarget = name == "CloseX";
+        return rt;
+    }
+    private Text MakeText(string name, Transform parent, string value, int size, TextAnchor align, Color color, bool bold)
+    {
+        GameObject go = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(Text));
+        go.layer = parent.gameObject.layer;
+        RectTransform rt = go.GetComponent<RectTransform>();
+        rt.SetParent(parent, false);
+        Text t = go.GetComponent<Text>();
+        StyleText(t, value, size, align);
+        t.color = color;
+        t.fontStyle = bold ? FontStyle.Bold : FontStyle.Normal;
+        return t;
+    }
+    private static void Stretch(RectTransform rt, Vector2 aMin, Vector2 aMax, Vector2 oMin, Vector2 oMax)
+    {
+        rt.anchorMin = aMin;
+        rt.anchorMax = aMax;
+        rt.pivot = new Vector2(0.5f, 0.5f);
+        rt.offsetMin = oMin;
+        rt.offsetMax = oMax;
         rt.localScale = Vector3.one;
     }
-    private static bool IsCustomSprite(Image img)
+    private static void Place(RectTransform rt, Vector2 anchor, Vector2 pivot, Vector2 pos, Vector2 size)
     {
-        return img != null && img.sprite != null && img.sprite.name.StartsWith("Btn_");
-    }
-    private void LayoutGraphicsRows()
-    {
-        if (gfxLayoutDone || gfxButtons[0] == null || gfxButtons[1] == null || gfxButtons[3] == null)
-        {
-            return;
-        }
-        RectTransform r0 = gfxButtons[0].GetComponent<RectTransform>();
-        RectTransform page = r0.parent as RectTransform;
-        if (page == null || !page.gameObject.activeInHierarchy)
-        {
-            return;
-        }
-        Canvas.ForceUpdateCanvases();
-        Rect b0 = LocalRect(r0, page);
-        Rect b1 = LocalRect(gfxButtons[1].GetComponent<RectTransform>(), page);
-        Rect b3 = LocalRect(gfxButtons[3].GetComponent<RectTransform>(), page);
-        if (b0.width < 2f || b0.height < 2f)
-        {
-            return;
-        }
-        gfxLayoutDone = true;
-        float w0 = b0.width;
-        float h0 = b0.height;
-        float gap = Mathf.Clamp(b1.xMin - b0.xMax, 4f, w0 * 0.12f);
-        float right = b3.xMax;
-        if (boxRect != null)
-        {
-            Rect box = LocalRect(boxRect, page);
-            right = Mathf.Min(right, box.xMax - gap * 3f);
-        }
-        GameObject labelObj = FindChild(page, "Label");
-        float left = right - (w0 * 6f + gap * 5f);
-        if (labelObj != null)
-        {
-            Rect lab = LocalRect(labelObj.GetComponent<RectTransform>(), page);
-            left = Mathf.Max(left, lab.xMin + h0 * 2.1f);
-        }
-        int maxCount = 1;
-        maxCount = Mathf.Max(maxCount, ActiveCount(gfxButtons));
-        maxCount = Mathf.Max(maxCount, ActiveCount(fpsButtons));
-        maxCount = Mathf.Max(maxCount, ActiveCount(resButtons));
-        float w = Mathf.Clamp((right - left - gap * (maxCount - 1)) / maxCount, w0 * 0.5f, w0);
-        float h = h0 * (w / w0);
-        float rowY = b0.center.y;
-        float fpsY = rowY - h0 * 1.6f;
-        float resY = rowY - h0 * 3.2f;
-        PlaceRow(gfxButtons, right, w, h, gap, rowY);
-        PlaceRow(fpsButtons, right, w, h, gap, fpsY);
-        PlaceRow(resButtons, right, w, h, gap, resY);
-        SizeResText(Mathf.Min(h * 0.6f, w * 0.22f));
-        GameObject label = FindChild(page, "Label");
-        if (label != null)
-        {
-            RectTransform orig = label.GetComponent<RectTransform>();
-            if (fpsLabel != null)
-            {
-                fpsLabel.GetComponent<RectTransform>().localPosition = orig.localPosition + new Vector3(0f, fpsY - rowY, 0f);
-            }
-            if (resLabel != null)
-            {
-                resLabel.GetComponent<RectTransform>().localPosition = orig.localPosition + new Vector3(0f, resY - rowY, 0f);
-            }
-        }
-    }
-    private void SizeResText(float size)
-    {
-        int px = Mathf.Max(8, Mathf.RoundToInt(size));
-        for (int i = 0; i < resButtons.Length; i++)
-        {
-            if (resButtons[i] == null)
-            {
-                continue;
-            }
-            Text t = resButtons[i].GetComponentInChildren<Text>();
-            if (t != null)
-            {
-                t.resizeTextForBestFit = false;
-                t.fontSize = px;
-            }
-            TMP_Text tm = resButtons[i].GetComponentInChildren<TMP_Text>();
-            if (tm != null)
-            {
-                tm.enableAutoSizing = false;
-                tm.fontSize = px;
-            }
-        }
-    }
-    private static int ActiveCount(Button[] row)
-    {
-        int count = 0;
-        for (int i = 0; i < row.Length; i++)
-        {
-            if (row[i] != null && row[i].gameObject.activeSelf)
-            {
-                count++;
-            }
-        }
-        return count;
-    }
-    private static Rect LocalRect(RectTransform rt, RectTransform space)
-    {
-        Vector3[] c = new Vector3[4];
-        rt.GetWorldCorners(c);
-        Vector3 a = space.InverseTransformPoint(c[0]);
-        Vector3 b = space.InverseTransformPoint(c[2]);
-        return Rect.MinMaxRect(Mathf.Min(a.x, b.x), Mathf.Min(a.y, b.y), Mathf.Max(a.x, b.x), Mathf.Max(a.y, b.y));
-    }
-    private static void PlaceRow(Button[] row, float right, float w, float h, float gap, float y)
-    {
-        int count = 0;
-        for (int i = 0; i < row.Length; i++)
-        {
-            if (row[i] != null && row[i].gameObject.activeSelf)
-            {
-                count++;
-            }
-        }
-        int slot = 0;
-        for (int i = 0; i < row.Length; i++)
-        {
-            if (row[i] == null || !row[i].gameObject.activeSelf)
-            {
-                continue;
-            }
-            RectTransform rt = row[i].GetComponent<RectTransform>();
-            float x = right - (count - 1 - slot) * (w + gap) - w * 0.5f;
-            slot++;
-            rt.anchorMin = new Vector2(0.5f, 0.5f);
-            rt.anchorMax = new Vector2(0.5f, 0.5f);
-            rt.pivot = new Vector2(0.5f, 0.5f);
-            rt.sizeDelta = new Vector2(w, h);
-            rt.localPosition = new Vector3(x, y, rt.localPosition.z);
-        }
-    }
-    private static void SetLabel(GameObject go, string value)
-    {
-        Text t = go.GetComponentInChildren<Text>(true);
-        if (t != null)
-        {
-            t.text = value;
-        }
-        TMP_Text tm = go.GetComponentInChildren<TMP_Text>(true);
-        if (tm != null)
-        {
-            tm.text = value;
-        }
+        rt.anchorMin = anchor;
+        rt.anchorMax = anchor;
+        rt.pivot = pivot;
+        rt.sizeDelta = size;
+        rt.anchoredPosition = pos;
+        rt.localScale = Vector3.one;
     }
     private void Update()
     {
@@ -537,16 +628,12 @@ public class PauseMenuPUBG : MonoBehaviour
         frameTime += Time.unscaledDeltaTime;
         if (frameTime >= 0.5f)
         {
-            int measured = Mathf.RoundToInt(frameCount / frameTime);
+            measuredFps = Mathf.RoundToInt(frameCount / frameTime);
             frameCount = 0;
             frameTime = 0f;
-            if (fpsLabel != null && fpsLabel.activeInHierarchy)
+            if (isOpen)
             {
-                SetLabel(fpsLabel, "FPS  " + measured);
-            }
-            if (resLabel != null && resLabel.activeInHierarchy)
-            {
-                SetLabel(resLabel, "RES  " + Mathf.Min(Screen.width, Screen.height) + "P");
+                UpdateHeaders();
             }
         }
         if (Input.GetKeyDown(KeyCode.Escape))
@@ -616,7 +703,7 @@ public class PauseMenuPUBG : MonoBehaviour
             }
             if (boxRect != null)
             {
-                float s = opening ? Mathf.Lerp(0.92f, 1f, EaseOutBack(k)) : Mathf.Lerp(startScale, 0.96f, k);
+                float s = opening ? Mathf.Lerp(0.97f, 1f, EaseOutCubic(k)) : Mathf.Lerp(startScale, 0.98f, k);
                 boxRect.localScale = new Vector3(s, s, 1f);
             }
             yield return null;
@@ -627,7 +714,7 @@ public class PauseMenuPUBG : MonoBehaviour
         }
         if (boxRect != null)
         {
-            float end = opening ? 1f : 0.96f;
+            float end = opening ? 1f : 0.98f;
             boxRect.localScale = new Vector3(end, end, 1f);
         }
         if (!opening)
@@ -644,13 +731,6 @@ public class PauseMenuPUBG : MonoBehaviour
     {
         float f = k - 1f;
         return 1f + f * f * f;
-    }
-    private static float EaseOutBack(float k)
-    {
-        const float c1 = 1.70158f;
-        const float c3 = c1 + 1f;
-        float f = k - 1f;
-        return 1f + c3 * f * f * f + c1 * f * f;
     }
     private void SetHUDVisible(bool visible)
     {
@@ -740,27 +820,35 @@ public class PauseMenuPUBG : MonoBehaviour
     {
         for (int i = 0; i < 4; i++)
         {
+            bool on = i == index;
             if (pages[i] != null)
             {
-                pages[i].SetActive(i == index);
+                pages[i].SetActive(on);
             }
-            if (tabs[i] != null)
+            if (tabs[i] == null)
             {
-                if (tabs[i].image != null)
-                {
-                    tabs[i].image.color = i == index ? tabOn : tabOff;
-                }
-                Text t = tabs[i].GetComponentInChildren<Text>();
-                if (t != null)
-                {
-                    t.color = i == index ? textOn : textOff;
-                }
+                continue;
+            }
+            if (tabs[i].image != null)
+            {
+                tabs[i].image.color = on ? tabOn : tabOff;
+            }
+            if (tabAccents[i] != null)
+            {
+                tabAccents[i].enabled = on;
+            }
+            Text t = tabs[i].GetComponentInChildren<Text>();
+            if (t != null)
+            {
+                t.color = on ? Color.white : textOff;
+                t.fontStyle = on ? FontStyle.Bold : FontStyle.Normal;
             }
         }
-        if (index == 3)
+        if (subTabText != null)
         {
-            LayoutGraphicsRows();
+            subTabText.text = SubTitles[Mathf.Clamp(index, 0, 3)];
         }
+        UpdateHeaders();
     }
     private void SetGraphics(string level)
     {
@@ -996,16 +1084,15 @@ public class PauseMenuPUBG : MonoBehaviour
                 continue;
             }
             bool supported = IsFpsSupported(FpsOptions[i]);
-            if (!fpsButtons[i].gameObject.activeSelf)
-            {
-                fpsButtons[i].gameObject.SetActive(true);
-                gfxLayoutDone = false;
-            }
+            fpsButtons[i].gameObject.SetActive(true);
             fpsButtons[i].interactable = supported;
-            SetButtonState(fpsButtons[i], supported && FpsOptions[i] == fps);
-            if (!supported && fpsButtons[i].image != null)
+            if (supported)
             {
-                fpsButtons[i].image.color = IsCustomSprite(fpsButtons[i].image) ? new Color(0.22f, 0.22f, 0.22f, 0.75f) : new Color(gfxOff.r * 0.5f, gfxOff.g * 0.5f, gfxOff.b * 0.5f, 0.6f);
+                SetButtonState(fpsButtons[i], FpsOptions[i] == fps);
+            }
+            else
+            {
+                PaintSegment(fpsButtons[i], borderDis, fillDis, textDis, false);
             }
         }
     }
@@ -1015,30 +1102,24 @@ public class PauseMenuPUBG : MonoBehaviour
         {
             return;
         }
-        if (IsCustomSprite(button.image))
-        {
-            button.image.color = on ? Color.white : new Color(0.55f, 0.55f, 0.55f, 1f);
-            Color gold = on ? new Color(1f, 0.84f, 0.5f, 1f) : new Color(0.6f, 0.5f, 0.3f, 1f);
-            Text ct = button.GetComponentInChildren<Text>();
-            if (ct != null)
-            {
-                ct.color = gold;
-            }
-            TMP_Text ctm = button.GetComponentInChildren<TMP_Text>();
-            if (ctm != null)
-            {
-                ctm.color = gold;
-            }
-            return;
-        }
+        PaintSegment(button, on ? accent : borderOff, on ? fillOn : fillOff, on ? Color.white : textOff, on);
+    }
+    private void PaintSegment(Button button, Color border, Color fill, Color text, bool bold)
+    {
         if (button.image != null)
         {
-            button.image.color = on ? gfxOn : gfxOff;
+            button.image.color = border;
+        }
+        Image f;
+        if (segFills.TryGetValue(button, out f) && f != null)
+        {
+            f.color = fill;
         }
         Text t = button.GetComponentInChildren<Text>();
         if (t != null)
         {
-            t.color = on ? textOn : textOff;
+            t.color = text;
+            t.fontStyle = bold ? FontStyle.Bold : FontStyle.Normal;
         }
     }
     private void UpdatePostFX()
