@@ -12,7 +12,7 @@ public class ChatSystem : MonoBehaviour, IOnEventCallback
     private const int MaxHistory = 40;
     private const int MaxFloating = 3;
     private const int MaxChars = 80;
-    private const int RowWrap = 24;
+    private const float RowTextWidth = 300f;
     private const float ShowTime = 6f;
     private const float FadeTime = 1f;
     private const float SendCooldown = 1f;
@@ -79,6 +79,7 @@ public class ChatSystem : MonoBehaviour, IOnEventCallback
     private Text preview;
     private Text placeholder;
     private Text teamText;
+    private Text measure;
     private GameObject loadingPanel;
     private bool hiddenByLoading;
     private bool isOpen;
@@ -285,6 +286,9 @@ public class ChatSystem : MonoBehaviour, IOnEventCallback
         Image barLine = AddImage(NewRect("Line", bar.rectTransform), separator);
         Stretch(barLine.rectTransform, new Vector2(0f, 1f), Vector2.one, new Vector2(0f, -2f), Vector2.zero);
         teamText = MakeText(bar.rectTransform, "", 24, TextAnchor.MiddleCenter, yellow);
+        measure = MakeText(root, "", 24, TextAnchor.UpperLeft, Color.white);
+        measure.supportRichText = false;
+        measure.enabled = false;
         Stretch(teamText.rectTransform, Vector2.zero, new Vector2(0f, 1f), Vector2.zero, new Vector2(ColumnWidth, 0f));
         Image teamLine = AddImage(NewRect("Sep", bar.rectTransform), separator);
         Place(teamLine.rectTransform, new Vector2(0f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(ColumnWidth, 0f), new Vector2(2f, 44f));
@@ -666,7 +670,8 @@ public class ChatSystem : MonoBehaviour, IOnEventCallback
         }
         Color team = TeamColors[Mathf.Clamp(number - 1, 0, TeamColors.Length - 1)];
         string head = nick + ":";
-        List<string> parts = Wrap(head + " " + msg, RowWrap);
+        measure.font = rtlMsg || HasRtl(nick) ? rtlFont : latinFont;
+        List<string> parts = WrapWidth(head + " " + msg, RowTextWidth);
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < parts.Count; i++)
         {
@@ -782,38 +787,54 @@ public class ChatSystem : MonoBehaviour, IOnEventCallback
             SetOpen(false);
         }
     }
-    private static List<string> Wrap(string text, int max)
+    private bool Fits(string logical, float max)
+    {
+        measure.text = Vis(logical);
+        return measure.preferredWidth <= max;
+    }
+    private List<string> WrapWidth(string text, float max)
     {
         List<string> result = new List<string>();
         string[] words = text.Split(' ');
-        StringBuilder line = new StringBuilder();
+        string line = "";
         for (int i = 0; i < words.Length; i++)
         {
             string w = words[i];
-            while (w.Length > max)
+            if (w.Length == 0)
             {
-                if (line.Length > 0)
+                continue;
+            }
+            string candidate = line.Length == 0 ? w : line + " " + w;
+            if (Fits(candidate, max))
+            {
+                line = candidate;
+                continue;
+            }
+            if (line.Length > 0 && Fits(w, max))
+            {
+                result.Add(line);
+                line = w;
+                continue;
+            }
+            string current = line.Length == 0 ? "" : line + " ";
+            for (int c = 0; c < w.Length; c++)
+            {
+                string next = current + w[c];
+                if (current.Trim().Length > 0 && !Fits(next, max))
                 {
-                    result.Add(line.ToString());
-                    line.Length = 0;
+                    result.Add(current.TrimEnd());
+                    current = w[c].ToString();
                 }
-                result.Add(w.Substring(0, max));
-                w = w.Substring(max);
+                else
+                {
+                    current = next;
+                }
             }
-            if (line.Length > 0 && line.Length + 1 + w.Length > max)
-            {
-                result.Add(line.ToString());
-                line.Length = 0;
-            }
-            if (line.Length > 0)
-            {
-                line.Append(' ');
-            }
-            line.Append(w);
+            line = current;
         }
         if (line.Length > 0 || result.Count == 0)
         {
-            result.Add(line.ToString());
+            result.Add(line);
         }
         return result;
     }
