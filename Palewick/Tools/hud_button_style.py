@@ -188,6 +188,8 @@ ITEMS = [
     ('hud_flashlight', 'mdi:flashlight', 0.42, -45, False, None, 11),
     ('hud_door', 'mdi:door-open', 0.4, 0, False, None, 13),
     ('hud_autorun', 'mdi:run-fast', 0.46, 0, False, None, 19),
+    ('hud_chat', 'fa:comment-dots', 0.42, 0, False, None, 23),
+    ('hud_chat_close', 'mdi:close-thick', 0.42, 0, False, None, 23),
 ]
 
 if __name__ == '__main__':

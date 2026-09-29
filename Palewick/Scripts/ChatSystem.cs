@@ -51,6 +51,9 @@ public class ChatSystem : MonoBehaviour, IOnEventCallback
     public Sprite clockArt;
     public Sprite sendArt;
     public Sprite panelArt;
+    public Sprite iconArt;
+    public Sprite iconCloseArt;
+    private Image iconImage;
     private Font latinFont;
     private Font rtlFont;
     private Sprite circleSprite;
@@ -267,6 +270,7 @@ public class ChatSystem : MonoBehaviour, IOnEventCallback
     private void Wire()
     {
         Transform icon = transform.Find("ChatIcon");
+        iconImage = icon.GetComponent<Image>();
         chatGlyph = icon.Find("Glyph").GetComponent<Image>();
         closeGlyph = icon.Find("Close").gameObject;
         badge = icon.Find("Badge").gameObject;
@@ -561,8 +565,18 @@ public class ChatSystem : MonoBehaviour, IOnEventCallback
         }
         panel.SetActive(open);
         floatBox.gameObject.SetActive(!open);
-        chatGlyph.enabled = !open;
-        closeGlyph.SetActive(open);
+        if (iconArt != null && iconImage != null)
+        {
+            iconImage.sprite = open && iconCloseArt != null ? iconCloseArt : iconArt;
+            iconImage.color = Color.white;
+            chatGlyph.enabled = false;
+            closeGlyph.SetActive(false);
+        }
+        else
+        {
+            chatGlyph.enabled = !open;
+            closeGlyph.SetActive(open);
+        }
         if (open)
         {
             unread = 0;
