@@ -11,10 +11,57 @@ public class PwLocalizer : MonoBehaviour
     private class Entry
     {
         public Text text;
+        public TMP_Text tmp;
         public string source;
         public string applied;
         public Font font;
         public TextAnchor alignment;
+        public TMP_FontAsset tmpFont;
+        public TextAlignmentOptions tmpAlignment;
+        public bool Alive
+        {
+            get { return tmp != null || text != null; }
+        }
+        public string Value
+        {
+            get { return tmp != null ? tmp.text : text.text; }
+            set
+            {
+                if (tmp != null) tmp.text = value;
+                else text.text = value;
+            }
+        }
+        public void Capture()
+        {
+            source = Value;
+            if (tmp != null)
+            {
+                tmpFont = tmp.font;
+                tmpAlignment = tmp.alignment;
+            }
+            else
+            {
+                font = text.font;
+                alignment = text.alignment;
+            }
+        }
+        public void Restore()
+        {
+            if (tmp != null)
+            {
+                tmp.font = tmpFont;
+                tmp.alignment = tmpAlignment;
+            }
+            else
+            {
+                text.font = font;
+                text.alignment = alignment;
+            }
+        }
+        public string Name
+        {
+            get { return tmp != null ? tmp.gameObject.name : text.gameObject.name; }
+        }
     }
     private static readonly Dictionary<string, string[]> Words = new Dictionary<string, string[]>
     {
@@ -46,7 +93,6 @@ public class PwLocalizer : MonoBehaviour
         { "main menu", new[] { "القائمة الرئيسية", "لیستی سەرەکی" } },
         { "menu", new[] { "القائمة", "لیست" } },
         { "lobby", new[] { "الردهة", "لۆبی" } },
-        { "ready", new[] { "جاهز", "ئامادەم" } },
         { "leave", new[] { "مغادرة", "جێهێشتن" } },
         { "leave room", new[] { "مغادرة الغرفة", "جێهێشتنی ژوور" } },
         { "name", new[] { "الاسم", "ناو" } },
@@ -65,12 +111,31 @@ public class PwLocalizer : MonoBehaviour
         { "resume", new[] { "استئناف", "بەردەوامبوون" } },
         { "pause", new[] { "إيقاف مؤقت", "وەستان" } },
         { "tap to start", new[] { "انقر للبدء", "کرتە بکە بۆ دەستپێکردن" } },
-        { "press any key", new[] { "اضغط أي زر", "هەر دوگمەیەک دابگرە" } }
+        { "press any key", new[] { "اضغط أي زر", "هەر دوگمەیەک دابگرە" } },
+        { "skip", new[] { "تخطي", "تێپەڕاندن" } },
+        { "enter text...", new[] { "اكتب هنا...", "لێرە بنووسە..." } },
+        { "enter room name...", new[] { "اكتب اسم الغرفة...", "ناوی ژوور بنووسە..." } },
+        { "server name", new[] { "اسم الخادم", "ناوی سێرڤەر" } },
+        { "servers", new[] { "الخوادم", "سێرڤەرەکان" } },
+        { "create server", new[] { "إنشاء خادم", "دروستکردنی سێرڤەر" } },
+        { "close", new[] { "إغلاق", "داخستن" } },
+        { "ready", new[] { "جاهز", "ئامادەیە" } },
+        { "disconnected", new[] { "انقطع الاتصال", "پەیوەندی پچڕا" } },
+        { "reconnecting...", new[] { "جارٍ إعادة الاتصال...", "دووبارە پەیوەندی دەکرێتەوە..." } },
+        { "not connected", new[] { "غير متصل", "پەیوەندی نییە" } },
+        { "creating...", new[] { "جارٍ الإنشاء...", "دروست دەکرێت..." } },
+        { "joining...", new[] { "جارٍ الانضمام...", "دەچێتە ژوورەوە..." } },
+        { "name taken", new[] { "الاسم مستخدم", "ئەم ناوە گیراوە" } },
+        { "create failed", new[] { "فشل الإنشاء", "دروستکردن سەرکەوتوو نەبوو" } },
+        { "server full", new[] { "الخادم ممتلئ", "سێرڤەرەکە پڕە" } },
+        { "join failed", new[] { "فشل الانضمام", "چوونەژوورەوە سەرکەوتوو نەبوو" } }
     };
     private readonly List<Entry> entries = new List<Entry>();
-    private readonly Dictionary<Text, Entry> lookup = new Dictionary<Text, Entry>();
+    private readonly Dictionary<Object, Entry> lookup = new Dictionary<Object, Entry>();
     private readonly HashSet<string> reported = new HashSet<string>();
     private Font rtlFont;
+    private TMP_FontAsset rtlTmpFont;
+    private bool tmpFontTried;
     private int lang = -1;
     private float nextScan;
     private float nextCheck;
@@ -97,6 +162,10 @@ public class PwLocalizer : MonoBehaviour
     private void OnDestroy()
     {
         SceneManager.sceneLoaded -= OnSceneLoaded;
+        if (rtlTmpFont != null)
+        {
+            Destroy(rtlTmpFont);
+        }
     }
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
@@ -119,17 +188,14 @@ public class PwLocalizer : MonoBehaviour
             for (int i = entries.Count - 1; i >= 0; i--)
             {
                 Entry e = entries[i];
-                if (e.text == null)
+                if (!e.Alive)
                 {
-                    lookup.Remove(e.text);
                     entries.RemoveAt(i);
                     continue;
                 }
-                if (e.text.text != e.applied)
+                if (e.Value != e.applied)
                 {
-                    e.source = e.text.text;
-                    e.font = e.text.font;
-                    e.alignment = e.text.alignment;
+                    e.Capture();
                     Apply(e);
                 }
                 else if (changed)
@@ -150,7 +216,8 @@ public class PwLocalizer : MonoBehaviour
             {
                 continue;
             }
-            Entry e = new Entry { text = t, source = t.text, applied = null, font = t.font, alignment = t.alignment };
+            Entry e = new Entry { text = t };
+            e.Capture();
             entries.Add(e);
             lookup[t] = e;
             Apply(e);
@@ -159,23 +226,27 @@ public class PwLocalizer : MonoBehaviour
         for (int i = 0; i < tmps.Length; i++)
         {
             TMP_Text t = tmps[i];
-            if (t == null || Skip(t.transform))
+            if (t == null || lookup.ContainsKey(t) || Skip(t.transform) || IsInputText(t))
             {
                 continue;
             }
-            Report("PW_TMP", t.text, t.gameObject.name);
+            Entry e = new Entry { tmp = t };
+            e.Capture();
+            entries.Add(e);
+            lookup[t] = e;
+            Apply(e);
         }
     }
     private void CleanLookup()
     {
-        List<Text> dead = null;
-        foreach (KeyValuePair<Text, Entry> kv in lookup)
+        List<Object> dead = null;
+        foreach (KeyValuePair<Object, Entry> kv in lookup)
         {
             if (kv.Key == null)
             {
                 if (dead == null)
                 {
-                    dead = new List<Text>();
+                    dead = new List<Object>();
                 }
                 dead.Add(kv.Key);
             }
@@ -207,17 +278,33 @@ public class PwLocalizer : MonoBehaviour
         InputField f = t.GetComponentInParent<InputField>(true);
         return f != null && f.textComponent == t;
     }
+    private static bool IsInputText(TMP_Text t)
+    {
+        TMP_InputField f = t.GetComponentInParent<TMP_InputField>(true);
+        return f != null && f.textComponent == t;
+    }
+    private TMP_FontAsset RtlTmpFont()
+    {
+        if (!tmpFontTried)
+        {
+            tmpFontTried = true;
+            if (rtlFont != null)
+            {
+                rtlTmpFont = TMP_FontAsset.CreateFontAsset(rtlFont);
+            }
+        }
+        return rtlTmpFont;
+    }
     private void Apply(Entry e)
     {
         string src = e.source;
         if (lang <= 0 || string.IsNullOrEmpty(src) || !HasLetters(src) || HasRtl(src))
         {
-            if (e.text.text != src)
+            e.Restore();
+            if (e.Value != src)
             {
-                e.text.text = src;
+                e.Value = src;
             }
-            e.text.font = e.font;
-            e.text.alignment = e.alignment;
             e.applied = src;
             return;
         }
@@ -225,21 +312,53 @@ public class PwLocalizer : MonoBehaviour
         string[] tr;
         if (!Words.TryGetValue(key, out tr))
         {
-            Report("PW_MISSING", src, e.text.gameObject.name);
-            e.text.font = e.font;
-            e.text.alignment = e.alignment;
-            e.text.text = src;
+            Report("PW_MISSING", src, e.Name);
+            e.Restore();
+            e.Value = src;
             e.applied = src;
             return;
         }
         string shown = PwRtl.Visual(tr[lang - 1]);
-        if (rtlFont != null)
+        if (e.tmp != null)
         {
-            e.text.font = rtlFont;
+            TMP_FontAsset fa = RtlTmpFont();
+            if (fa == null)
+            {
+                e.Restore();
+                e.Value = src;
+                e.applied = src;
+                return;
+            }
+            e.tmp.font = fa;
+            e.tmp.alignment = MirrorTmp(e.tmpAlignment);
         }
-        e.text.alignment = Mirror(e.alignment);
-        e.text.text = shown;
-        e.applied = shown;
+        else
+        {
+            if (rtlFont != null)
+            {
+                e.text.font = rtlFont;
+            }
+            e.text.alignment = Mirror(e.alignment);
+        }
+        e.Value = shown;
+        e.applied = e.Value;
+    }
+    private static TextAlignmentOptions MirrorTmp(TextAlignmentOptions a)
+    {
+        switch (a)
+        {
+            case TextAlignmentOptions.TopLeft: return TextAlignmentOptions.TopRight;
+            case TextAlignmentOptions.TopRight: return TextAlignmentOptions.TopLeft;
+            case TextAlignmentOptions.Left: return TextAlignmentOptions.Right;
+            case TextAlignmentOptions.Right: return TextAlignmentOptions.Left;
+            case TextAlignmentOptions.BottomLeft: return TextAlignmentOptions.BottomRight;
+            case TextAlignmentOptions.BottomRight: return TextAlignmentOptions.BottomLeft;
+            case TextAlignmentOptions.MidlineLeft: return TextAlignmentOptions.MidlineRight;
+            case TextAlignmentOptions.MidlineRight: return TextAlignmentOptions.MidlineLeft;
+            case TextAlignmentOptions.BaselineLeft: return TextAlignmentOptions.BaselineRight;
+            case TextAlignmentOptions.BaselineRight: return TextAlignmentOptions.BaselineLeft;
+            default: return a;
+        }
     }
     private void Report(string tag, string text, string objectName)
     {
