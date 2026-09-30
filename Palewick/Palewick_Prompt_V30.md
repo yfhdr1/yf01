@@ -296,3 +296,11 @@ PlayerHealth الجديد وEnemyAI (IsDead) انلصقوا بالمشروع، �
 - Lobby v2: any player name (no char limits, max 20), Arabic/Kurdish names shaped via PwRtl.Visual (NamePreview/ServerNamePreview overlays, server list labels reshaped). Sound button = mute ALL lobby audio (AudioListener.volume, key pw_lobbymute; restored to pw_audio on leaving). ConnectionBadge Online/Offline above START; Single Player button inside ServerPanel. PwLocalizer skips PlayerName/ServerList/NamePreview/ServerNamePreview. NickName deferred while InRoom/Leaving/Disconnecting.
 - Intro v2: headphones warning card -> video (Prepare early) -> Skip plate -> horror loading (bar fill, %, rotating tips localized in PwLocalizer, spinner, fade, allowSceneActivation after min 1.6s). Editor tool Palewick/Build Horror Intro (IntroBuilder.cs) rebuilds IntroCanvas. Next phases: Scene_A loading/death screens, smarter monster, basic anti-cheat.
 - Scene_A screens: DeathScreen.cs on DeathPanel (fade, red pulse, You Died, 5s countdown, Respawn -> local PlayerHealth.Revive, Leave -> PauseMenuPUBG.ExitToLobby via SendMessage). LoadingScreenFx.cs on LoadingPanel (spinner, tips, fake bar). Editor tool Palewick/Build Horror Game Screens (GameScreensBuilder.cs) rebuilds only the insides of DeathPanel/LoadingPanel (DeathText removed).
+
+## Smart Monster (Phase 2)
+- EnemyAI states: Idle, Patrol, Investigate, Search, Chase, Return.
+- Hearing: sprint 16m, jump 10m, walk 4.5m, doors 12m (EnemyAI.HearNoise static, called by DoorController.SetDoor).
+- Loses target after 3s without sight -> investigates last seen position -> searches 5s -> returns/patrols.
+- Opens closed doors ahead via DoorController.OpenFrom(pos); DoorController.IsOpen added.
+- Flashlight aimed at monster within 9m/22deg slows chase to x0.7.
+- Network format, RPC names and public API unchanged.

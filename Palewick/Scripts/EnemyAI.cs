@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.AI;
 using Photon.Pun;
@@ -18,6 +19,20 @@ public class EnemyAI : MonoBehaviourPunCallbacks, IPunObservable
     public float patrolRadius = 10f;
     public float eyeHeight = 1.6f;
     public LayerMask sightMask = ~0;
+    [Header("Senses")]
+    public float sprintHearingRange = 16f;
+    public float jumpHearingRange = 10f;
+    public float walkHearingRange = 4.5f;
+    public float doorHearingRange = 12f;
+    public float loseSightTime = 3f;
+    public float searchTime = 5f;
+    public float investigateSpeedMultiplier = 1.6f;
+    public float flashlightSlowRange = 9f;
+    public float flashlightSlowAngle = 22f;
+    public float flashlightSlowFactor = 0.7f;
+    public float doorOpenDistance = 1.7f;
+    public float patrolPauseMin = 2f;
+    public float patrolPauseMax = 5f;
     [Header("Combat")]
     public float maxHealth = 100f;
     public float attackDamage = 15f;
@@ -37,7 +52,19 @@ public class EnemyAI : MonoBehaviourPunCallbacks, IPunObservable
     public Animator animator;
     public NavMeshAgent agent;
     public Transform playerTarget;
-    private enum State { Idle, Chase, Return }
+    private enum State { Idle, Chase, Return, Patrol, Investigate, Search }
+    private static readonly List<EnemyAI> All = new List<EnemyAI>();
+    private readonly Dictionary<PlayerHealth, Vector3> lastPlayerPositions = new Dictionary<PlayerHealth, Vector3>();
+    private float lastHearingTime;
+    private Vector3 lastSeenPosition;
+    private float lastSeenTime;
+    private Vector3 investigatePoint;
+    private float searchEndTime;
+    private float searchBaseYaw;
+    private float patrolWaitUntil;
+    private bool patrolMoving;
+    private float nextDoorCheck;
+    private float speedFactor = 1f;
     private State state = State.Idle;
     private Vector3 spawnPoint;
     private Quaternion spawnRotation;
@@ -85,6 +112,33 @@ public class EnemyAI : MonoBehaviourPunCallbacks, IPunObservable
                 }
             }
         }
+    }
+    public override void OnEnable()
+    {
+        base.OnEnable();
+        if (!All.Contains(this)) All.Add(this);
+    }
+    public override void OnDisable()
+    {
+        base.OnDisable();
+        All.Remove(this);
+    }
+    public static void HearNoise(Vector3 position, float radius)
+    {
+        for (int i = 0; i < All.Count; i++)
+        {
+            EnemyAI e = All[i];
+            if (e != null) e.OnNoise(position, radius);
+        }
+    }
+    private void OnNoise(Vector3 position, float radius)
+    {
+        if (isDead || !IsAuthority() || agent == null || !agent.enabled) return;
+        if (radius < 0f) radius = doorHearingRange;
+        float d = FlatDistance(transform.position, position);
+        if (d < 2.5f || d > radius) return;
+        if (state == State.Chase) return;
+        BeginInvestigate(position);
     }
     private void Start()
     {
@@ -140,12 +194,21 @@ public class EnemyAI : MonoBehaviourPunCallbacks, IPunObservable
         {
             nextScanTime = Time.time + targetScanInterval;
             cachedPlayers = FindObjectsByType<PlayerHealth>(FindObjectsInactive.Include);
+            ListenToPlayers();
         }
         switch (state)
         {
             case State.Idle: UpdateIdle(); break;
             case State.Chase: UpdateChase(); break;
             case State.Return: UpdateReturn(); break;
+            case State.Patrol: UpdatePatrol(); break;
+            case State.Investigate: UpdateInvestigate(); break;
+            case State.Search: UpdateSearch(); break;
+        }
+        if (Time.time >= nextDoorCheck)
+        {
+            nextDoorCheck = Time.time + 0.25f;
+            OpenDoorAhead();
         }
         HandlePendingHit();
         UpdateAnimatorAuthority();
@@ -172,10 +235,188 @@ public class EnemyAI : MonoBehaviourPunCallbacks, IPunObservable
         if (agent.hasPath) agent.ResetPath();
         agent.updateRotation = false;
         transform.rotation = Quaternion.Slerp(transform.rotation, spawnRotation, Time.deltaTime * turnSpeed * 0.3f);
+        if (patrolRadius > 0.5f && Time.time >= patrolWaitUntil)
+        {
+            state = State.Patrol;
+            patrolMoving = false;
+        }
+    }
+    private void UpdatePatrol()
+    {
+        Transform found = FindVisibleTarget();
+        if (found != null)
+        {
+            StartChase(found);
+            return;
+        }
+        agent.isStopped = false;
+        agent.speed = patrolSpeed;
+        agent.autoBraking = true;
+        agent.stoppingDistance = 0.2f;
+        agent.updateRotation = true;
+        if (!patrolMoving)
+        {
+            if (Time.time < patrolWaitUntil) return;
+            Vector2 r = Random.insideUnitCircle * patrolRadius;
+            Vector3 p = spawnPoint + new Vector3(r.x, 0f, r.y);
+            Vector3 point;
+            if (TryGetReachablePoint(p, out point) && agent.SetDestination(point))
+            {
+                patrolMoving = true;
+            }
+            else
+            {
+                patrolWaitUntil = Time.time + 1f;
+            }
+            return;
+        }
+        if (!agent.pathPending && (agent.remainingDistance <= 0.4f || !agent.hasPath))
+        {
+            patrolMoving = false;
+            patrolWaitUntil = Time.time + Random.Range(patrolPauseMin, patrolPauseMax);
+        }
+    }
+    private void BeginInvestigate(Vector3 position)
+    {
+        Vector3 point;
+        if (!TryGetChasePoint(position, out point)) return;
+        investigatePoint = point;
+        playerTarget = null;
+        state = State.Investigate;
+        nextDestinationTime = 0f;
+        patrolMoving = false;
+        if (agent != null && agent.isOnNavMesh)
+        {
+            agent.isStopped = false;
+            agent.SetDestination(investigatePoint);
+        }
+    }
+    private void UpdateInvestigate()
+    {
+        Transform found = FindVisibleTarget();
+        if (found != null)
+        {
+            StartChase(found);
+            return;
+        }
+        agent.isStopped = false;
+        agent.speed = patrolSpeed * investigateSpeedMultiplier;
+        agent.autoBraking = true;
+        agent.stoppingDistance = 0.5f;
+        agent.updateRotation = true;
+        if (Time.time >= nextDestinationTime)
+        {
+            nextDestinationTime = Time.time + 0.5f;
+            agent.SetDestination(investigatePoint);
+        }
+        if (!agent.pathPending && (FlatDistance(transform.position, investigatePoint) <= 1f || (agent.hasPath && agent.remainingDistance <= 0.6f) || agent.pathStatus == NavMeshPathStatus.PathInvalid))
+        {
+            BeginSearch();
+        }
+    }
+    private void BeginSearch()
+    {
+        state = State.Search;
+        searchEndTime = Time.time + searchTime;
+        searchBaseYaw = transform.eulerAngles.y;
+        if (agent.hasPath) agent.ResetPath();
+    }
+    private void UpdateSearch()
+    {
+        Transform found = FindVisibleTarget();
+        if (found != null)
+        {
+            StartChase(found);
+            return;
+        }
+        agent.updateRotation = false;
+        float k = 1f - (searchEndTime - Time.time) / Mathf.Max(0.1f, searchTime);
+        float yaw = searchBaseYaw + Mathf.Sin(k * Mathf.PI * 2f) * 80f;
+        transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.Euler(0f, yaw, 0f), Time.deltaTime * 3f);
+        if (Time.time >= searchEndTime)
+        {
+            BeginReturn();
+        }
+    }
+    private void ListenToPlayers()
+    {
+        float now = Time.time;
+        float dt = Mathf.Max(0.05f, now - lastHearingTime);
+        lastHearingTime = now;
+        for (int i = 0; i < cachedPlayers.Length; i++)
+        {
+            PlayerHealth p = cachedPlayers[i];
+            if (p == null || !IsValidTarget(p.transform)) continue;
+            Vector3 pos = p.transform.position;
+            Vector3 old;
+            bool had = lastPlayerPositions.TryGetValue(p, out old);
+            lastPlayerPositions[p] = pos;
+            if (!had || state == State.Chase) continue;
+            float flat = FlatDistance(pos, old) / dt;
+            float rise = (pos.y - old.y) / dt;
+            float radius = 0f;
+            if (flat > 4.8f) radius = sprintHearingRange;
+            else if (flat > 1.5f) radius = walkHearingRange;
+            if (rise > 2.5f) radius = Mathf.Max(radius, jumpHearingRange);
+            if (radius <= 0f) continue;
+            if (FlatDistance(transform.position, pos) <= radius) BeginInvestigate(pos);
+        }
+        if (lastPlayerPositions.Count > 16) lastPlayerPositions.Clear();
+    }
+    private bool LitByFlashlight(Transform target)
+    {
+        if (target == null) return false;
+        Light[] lights = target.GetComponentsInChildren<Light>(false);
+        Vector3 me = transform.position + Vector3.up * eyeHeight * 0.8f;
+        for (int i = 0; i < lights.Length; i++)
+        {
+            Light l = lights[i];
+            if (l == null || !l.enabled || l.type != LightType.Spot) continue;
+            Vector3 to = me - l.transform.position;
+            float d = to.magnitude;
+            if (d > flashlightSlowRange || d < 0.01f) continue;
+            if (Vector3.Angle(l.transform.forward, to) <= flashlightSlowAngle) return true;
+        }
+        return false;
+    }
+    private void OpenDoorAhead()
+    {
+        if (state != State.Chase && state != State.Investigate && state != State.Patrol && state != State.Return) return;
+        Vector3 dir = agent.desiredVelocity;
+        dir.y = 0f;
+        if (dir.sqrMagnitude < 0.01f) dir = transform.forward;
+        dir.Normalize();
+        Vector3 origin = transform.position + Vector3.up * 1.1f;
+        RaycastHit[] hits = Physics.SphereCastAll(origin, 0.3f, dir, doorOpenDistance, ~0, QueryTriggerInteraction.Ignore);
+        for (int i = 0; i < hits.Length; i++)
+        {
+            if (hits[i].transform.IsChildOf(transform)) continue;
+            DoorController door = hits[i].transform.GetComponentInParent<DoorController>();
+            if (door != null && !door.IsOpen)
+            {
+                door.OpenFrom(transform.position);
+                return;
+            }
+        }
+    }
+    private float nextSightCheck;
+    private bool cachedSight;
+    private bool HasLineOfSightCached(Transform target)
+    {
+        if (Time.time >= nextSightCheck)
+        {
+            nextSightCheck = Time.time + 0.25f;
+            cachedSight = HasLineOfSight(target);
+            speedFactor = LitByFlashlight(target) ? flashlightSlowFactor : 1f;
+        }
+        return cachedSight;
     }
     private void StartChase(Transform target)
     {
         playerTarget = target;
+        lastSeenPosition = target.position;
+        lastSeenTime = Time.time;
+        speedFactor = 1f;
         state = State.Chase;
         stuckTimer = 0f;
         nextDestinationTime = 0f;
@@ -192,15 +433,28 @@ public class EnemyAI : MonoBehaviourPunCallbacks, IPunObservable
             return;
         }
         float distance = FlatDistance(transform.position, playerTarget.position);
-        if (distance > returnDistance)
+        if (distance <= closeDetectionRange || HasLineOfSightCached(playerTarget))
         {
-            BeginReturn();
+            lastSeenPosition = playerTarget.position;
+            lastSeenTime = Time.time;
+        }
+        if (distance > returnDistance || Time.time - lastSeenTime > loseSightTime)
+        {
+            Transform keep = playerTarget;
+            Vector3 guess = lastSeenPosition;
+            playerTarget = null;
+            BeginInvestigate(guess);
+            if (state != State.Investigate)
+            {
+                playerTarget = keep;
+                BeginReturn();
+            }
             return;
         }
         Vector3 point;
         bool found = TryGetChasePoint(playerTarget.position, out point);
         agent.isStopped = false;
-        agent.speed = chaseSpeed;
+        agent.speed = chaseSpeed * speedFactor;
         agent.autoBraking = false;
         agent.stoppingDistance = ChaseStopDistance();
         if (found && Time.time >= nextDestinationTime)
@@ -238,7 +492,7 @@ public class EnemyAI : MonoBehaviourPunCallbacks, IPunObservable
                 if (playerTarget != null && TryGetChasePoint(playerTarget.position, out point) && agent.SetDestination(point)) lastDestination = point;
                 Vector3 dir = agent.steeringTarget - transform.position;
                 dir.y = 0f;
-                if (dir.sqrMagnitude > 0.01f) agent.velocity = dir.normalized * chaseSpeed;
+                if (dir.sqrMagnitude > 0.01f) agent.velocity = dir.normalized * chaseSpeed * speedFactor;
             }
         }
         else
@@ -278,6 +532,7 @@ public class EnemyAI : MonoBehaviourPunCallbacks, IPunObservable
         {
             agent.ResetPath();
             state = State.Idle;
+            patrolWaitUntil = Time.time + Random.Range(patrolPauseMin, patrolPauseMax);
         }
     }
     private Transform FindVisibleTarget()
@@ -500,6 +755,7 @@ public class EnemyAI : MonoBehaviourPunCallbacks, IPunObservable
     }
     private void OnDestroy()
     {
+        All.Remove(this);
         CancelInvoke();
         playerTarget = null;
         pendingHitTarget = null;

@@ -12,6 +12,7 @@ public class DoorController : MonoBehaviourPunCallbacks, IInteractable
     private Quaternion defaultRotation;
     private Quaternion openRotation;
     private Quaternion targetRotation;
+    private float nextAutoOpen;
     private void Awake()
     {
         defaultRotation = transform.localRotation;
@@ -31,6 +32,33 @@ public class DoorController : MonoBehaviourPunCallbacks, IInteractable
             isMoving = false;
         }
     }
+    public bool IsOpen
+    {
+        get { return isOpen; }
+    }
+    private float DirFrom(Vector3 origin)
+    {
+        Vector3 toDoor = transform.position - origin;
+        toDoor.y = 0f;
+        Vector3 doorAxis = transform.right;
+        doorAxis.y = 0f;
+        float side = Vector3.Dot(doorAxis.normalized, toDoor.normalized);
+        float dir = side > 0f ? 1f : -1f;
+        if (invertDirection)
+        {
+            dir = -dir;
+        }
+        return dir;
+    }
+    public void OpenFrom(Vector3 origin)
+    {
+        if (isOpen || Time.time < nextAutoOpen)
+        {
+            return;
+        }
+        nextAutoOpen = Time.time + 1f;
+        Send(true, DirFrom(origin));
+    }
     public void Interact()
     {
         bool wantOpen = !isOpen;
@@ -39,17 +67,12 @@ public class DoorController : MonoBehaviourPunCallbacks, IInteractable
         {
             Camera mainCam = Camera.main;
             Transform referenceCam = mainCam != null ? mainCam.transform : transform;
-            Vector3 toDoor = transform.position - referenceCam.position;
-            toDoor.y = 0f;
-            Vector3 doorAxis = transform.right;
-            doorAxis.y = 0f;
-            float side = Vector3.Dot(doorAxis.normalized, toDoor.normalized);
-            dir = side > 0f ? 1f : -1f;
-            if (invertDirection)
-            {
-                dir = -dir;
-            }
+            dir = DirFrom(referenceCam.position);
         }
+        Send(wantOpen, dir);
+    }
+    private void Send(bool wantOpen, float dir)
+    {
         if (photonView != null && PhotonNetwork.InRoom)
         {
             photonView.RPC(nameof(RPC_SetDoor), RpcTarget.AllViaServer, wantOpen, dir);
@@ -91,6 +114,7 @@ public class DoorController : MonoBehaviourPunCallbacks, IInteractable
         else
         {
             isMoving = true;
+            EnemyAI.HearNoise(transform.position, -1f);
         }
     }
 }
