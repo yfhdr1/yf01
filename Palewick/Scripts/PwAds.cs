@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using Object = UnityEngine.Object;
 #if PW_ADMOB
 using GoogleMobileAds.Api;
 #endif

@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using Object = UnityEngine.Object;
 public class PwPoints : MonoBehaviour
 {
     public const int StartPoints = 3;

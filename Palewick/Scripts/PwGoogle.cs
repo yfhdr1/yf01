@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using Object = UnityEngine.Object;
 #if PW_GPGS && UNITY_ANDROID
 using GooglePlayGames;
 using GooglePlayGames.BasicApi;

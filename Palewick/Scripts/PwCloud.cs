@@ -8,6 +8,7 @@ using Unity.Services.CloudSave;
 using Unity.Services.CloudSave.Models;
 using Unity.Services.Core;
 using UnityEngine;
+using Object = UnityEngine.Object;
 public class PwCloudValue
 {
     public bool Ok;
