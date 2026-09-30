@@ -211,6 +211,32 @@ def glow_pad():
     a = np.clip(1 - d, 0, 1) ** 1.8
     rgba = np.dstack([np.full_like(a, 200), np.full_like(a, 10), np.full_like(a, 12), a * 255]).astype(np.uint8)
     Image.fromarray(rgba, 'RGBA').save(os.path.join(OUT, 'lobby_floor_glow.png'))
+def bars():
+    import numpy as np
+    w, h = 1024, 40
+    K = 2
+    im = Image.new('RGBA', (w * K, h * K), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    d.rounded_rectangle([0, 0, w * K - 1, h * K - 1], 10 * K, fill=(14, 6, 8, 235), outline=(130, 8, 10, 255), width=3 * K)
+    im.resize((w, h), Image.LANCZOS).save(os.path.join(OUT, 'lobby_bar_bg.png'))
+    fw, fh = 1000, 26
+    yy = np.linspace(0, 1, fh)[:, None] * np.ones((1, fw))
+    gn = noise(12, fw, fh, 4)
+    r = np.clip(200 - yy * 90 + (gn - 0.5) * 50, 0, 255)
+    g = np.clip(14 - yy * 8 + (gn - 0.5) * 10, 0, 255)
+    b = np.clip(16 - yy * 8, 0, 255)
+    a = np.full_like(r, 255)
+    a[:, :] = 255
+    fill = Image.fromarray(np.dstack([r, g, b, a]).astype(np.uint8), 'RGBA')
+    m = Image.new('L', (fw, fh), 0)
+    ImageDraw.Draw(m).rounded_rectangle([0, 0, fw - 1, fh - 1], 8, fill=255)
+    fill.putalpha(m)
+    hl = Image.new('RGBA', (fw, fh), (255, 140, 130, 0))
+    hm = Image.new('L', (fw, fh), 0)
+    ImageDraw.Draw(hm).rectangle([6, 3, fw - 7, 6], fill=90)
+    hl.putalpha(hm)
+    fill.alpha_composite(hl)
+    fill.save(os.path.join(OUT, 'lobby_bar_fill.png'))
 def icons():
     import importlib
     os.environ.setdefault('X', '1')
@@ -222,9 +248,11 @@ def icons():
     hb.make('lobby_exit', 'mdi:exit-run', 0.44, seed=37)
     hb.make('lobby_avatar', 'mdi:account', 0.5, seed=41)
     hb.make('lobby_close', 'mdi:close-thick', 0.42, seed=43)
+    hb.make('lobby_headphones', 'mdi:headphones', 0.46, seed=47)
 if __name__ == '__main__':
     bg(); fog(); ember(); blood_top(); drip(); vignette(); title(); panel(); ring(); glow_pad()
     plate('lobby_btn_start', 560, 170, (120, 6, 8), (220, 40, 30), 3)
     plate('lobby_btn_side', 440, 104, (34, 6, 8), (150, 10, 12), 5, drips=False)
     plate('lobby_nameplate', 520, 120, (22, 6, 8), (130, 8, 10), 9, drips=False)
+    bars()
     icons()
