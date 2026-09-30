@@ -63,7 +63,10 @@ public class NetworkManager : MonoBehaviourPunCallbacks
     public override void OnDisconnected(DisconnectCause cause)
     {
         autoJoin = false;
-        Debug.LogWarning("Photon disconnected: " + cause);
+        if (cause != DisconnectCause.DisconnectByClientLogic)
+        {
+            Debug.LogWarning("Photon disconnected: " + cause);
+        }
     }
     private void JoinGameRoom()
     {
