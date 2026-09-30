@@ -476,8 +476,14 @@ public class LobbyManager : MonoBehaviour
     }
     private void SetSafeNickName(string name)
     {
-        ClientState state = PhotonNetwork.NetworkClientState;
-        if (PhotonNetwork.InRoom || state == ClientState.Disconnecting || state == ClientState.Leaving)
+        if (PhotonNetwork.NickName == name)
+        {
+            pendingNick = null;
+            return;
+        }
+        ClientState state = PhotonNetwork.NetworkingClient != null ? PhotonNetwork.NetworkingClient.State : ClientState.PeerCreated;
+        bool safe = state == ClientState.PeerCreated || state == ClientState.Disconnected || state == ClientState.ConnectedToMasterServer || state == ClientState.JoinedLobby;
+        if (!safe || PhotonNetwork.OfflineMode || PhotonNetwork.CurrentRoom != null)
         {
             pendingNick = name;
             return;
