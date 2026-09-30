@@ -158,11 +158,6 @@ public class ServerBrowser : MonoBehaviourPunCallbacks
             PlayOffline();
             return;
         }
-        if (cause == DisconnectCause.DisconnectByClientLogic)
-        {
-            SetStatus("Disconnected");
-            return;
-        }
         SetStatus(NoInternet() ? "Offline" : "Reconnecting...");
         ScheduleReconnect(NoInternet() ? OfflineRetryDelay : ReconnectDelay);
     }

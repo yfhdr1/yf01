@@ -1835,9 +1835,16 @@ public class PauseMenuPUBG : MonoBehaviour
             timeout -= Time.unscaledDeltaTime;
             yield return null;
         }
+        PhotonNetwork.AutomaticallySyncScene = false;
         if (PhotonNetwork.IsConnected)
         {
             PhotonNetwork.Disconnect();
+        }
+        timeout = 3f;
+        while (PhotonNetwork.NetworkClientState != Photon.Realtime.ClientState.Disconnected && PhotonNetwork.NetworkClientState != Photon.Realtime.ClientState.PeerCreated && timeout > 0f)
+        {
+            timeout -= Time.unscaledDeltaTime;
+            yield return null;
         }
         SetPaused(false);
         AudioListener.pause = false;
