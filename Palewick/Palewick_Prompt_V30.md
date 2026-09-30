@@ -288,3 +288,4 @@ PlayerHealth الجديد وEnemyAI (IsDead) انلصقوا بالمشروع، �
 - NEVER write "when done tell me 'done'" at the end of steps. The user always applies the code; just give the next step.
 - Chat: ChatSystem supports editor-built layout via Palewick/Create Chat In Canvas (Editor/ChatBuilder.cs); runtime Wire() binds to existing ChatRoot children by name.
 - Status 2026-09-30: Minimap (editor-built) OK, AutoRun OK, Chat in Canvas + horror icons OK, Door button OK (PlayerInteraction proximity scan a0f3304). Project cleanup done (unused scripts, old editor tools, stray folders). NEXT: gyro, then PUBG-style lobby + lobby chat.
+- !!! ABSOLUTE RULE: EVERY reply to the user must be in Iraqi Arabic ONLY. NEVER reply in English, not even one message. The user got very angry twice. !!!
