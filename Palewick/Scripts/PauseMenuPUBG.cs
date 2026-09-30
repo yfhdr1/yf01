@@ -301,7 +301,14 @@ public class PauseMenuPUBG : MonoBehaviour
         BuildLanguagePage();
         if (lang > 0)
         {
-            MirrorChildren(root);
+            foreach (Transform child in root)
+            {
+                RectTransform rt = child as RectTransform;
+                if (rt != null && (rt.name.StartsWith("Page") || rt.name.StartsWith("Strip") || rt.name.StartsWith("Bottom")))
+                {
+                    MirrorChildren(rt);
+                }
+            }
         }
     }
     private void BuildTab(int i, string key)

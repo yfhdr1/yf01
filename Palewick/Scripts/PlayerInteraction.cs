@@ -1,4 +1,6 @@
 using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.UI;
 using Photon.Pun;
 public class PlayerInteraction : MonoBehaviour
 {
@@ -10,10 +12,14 @@ public class PlayerInteraction : MonoBehaviour
     public float interactCooldown = 0.4f;
     private const float ScanInterval = 0.1f;
     private const float BehindLimit = -0.2f;
+    private const float KeepTime = 0.5f;
     private IInteractable currentInteractable;
+    private IInteractable shownInteractable;
+    private float lastSeenTime = -10f;
     private float cooldownTimer;
     private float nextScan;
     private Transform body;
+    private GameObject hookedButton;
     private void Start()
     {
         PhotonView pv = GetComponentInParent<PhotonView>();
@@ -29,6 +35,7 @@ public class PlayerInteraction : MonoBehaviour
     private void OnDisable()
     {
         currentInteractable = null;
+        shownInteractable = null;
     }
     private void Update()
     {
@@ -36,16 +43,45 @@ public class PlayerInteraction : MonoBehaviour
         {
             cooldownTimer -= Time.deltaTime;
         }
+        HookButton();
         if (Time.time >= nextScan)
         {
             nextScan = Time.time + ScanInterval;
             Scan();
         }
-        SetButtonState(currentInteractable != null);
+        if (currentInteractable != null)
+        {
+            shownInteractable = currentInteractable;
+            lastSeenTime = Time.time;
+        }
+        else if (Time.time - lastSeenTime > KeepTime)
+        {
+            shownInteractable = null;
+        }
+        SetButtonState(shownInteractable != null);
         if (Input.GetKeyDown(KeyCode.E))
         {
             OnInteractButtonPressed();
         }
+    }
+    private void HookButton()
+    {
+        if (interactButtonUI == null || hookedButton == interactButtonUI)
+        {
+            return;
+        }
+        hookedButton = interactButtonUI;
+        Button b = interactButtonUI.GetComponent<Button>();
+        if (b != null)
+        {
+            b.onClick.RemoveAllListeners();
+        }
+        InteractPress press = interactButtonUI.GetComponent<InteractPress>();
+        if (press == null)
+        {
+            press = interactButtonUI.AddComponent<InteractPress>();
+        }
+        press.owner = this;
     }
     private void Scan()
     {
@@ -88,6 +124,10 @@ public class PlayerInteraction : MonoBehaviour
             {
                 continue;
             }
+            if (!CanSee(center, point, c, target))
+            {
+                continue;
+            }
             float score = dist - dot * 0.5f;
             if (score < bestScore)
             {
@@ -96,6 +136,30 @@ public class PlayerInteraction : MonoBehaviour
             }
         }
         currentInteractable = best;
+    }
+    private bool CanSee(Vector3 from, Vector3 to, Collider targetCollider, IInteractable target)
+    {
+        Vector3 dir = to - from;
+        float len = dir.magnitude;
+        if (len < 0.1f)
+        {
+            return true;
+        }
+        RaycastHit[] hits = Physics.RaycastAll(from, dir / len, len - 0.05f, ~0, QueryTriggerInteraction.Ignore);
+        for (int i = 0; i < hits.Length; i++)
+        {
+            Collider h = hits[i].collider;
+            if (h == null || h == targetCollider || h.transform.IsChildOf(body))
+            {
+                continue;
+            }
+            if (h.GetComponentInParent<IInteractable>() == target)
+            {
+                continue;
+            }
+            return false;
+        }
+        return true;
     }
     private void SetButtonState(bool state)
     {
@@ -106,11 +170,32 @@ public class PlayerInteraction : MonoBehaviour
     }
     public void OnInteractButtonPressed()
     {
-        if (currentInteractable != null && cooldownTimer <= 0f)
+        IInteractable target = currentInteractable != null ? currentInteractable : shownInteractable;
+        if (target != null && cooldownTimer <= 0f)
         {
             cooldownTimer = interactCooldown;
-            currentInteractable.Interact();
+            target.Interact();
         }
+    }
+}
+public class InteractPress : MonoBehaviour, IPointerDownHandler, IPointerUpHandler
+{
+    public PlayerInteraction owner;
+    public void OnPointerDown(PointerEventData eventData)
+    {
+        if (owner != null)
+        {
+            owner.OnInteractButtonPressed();
+        }
+        transform.localScale = new Vector3(0.9f, 0.9f, 1f);
+    }
+    public void OnPointerUp(PointerEventData eventData)
+    {
+        transform.localScale = Vector3.one;
+    }
+    private void OnDisable()
+    {
+        transform.localScale = Vector3.one;
     }
 }
 public interface IInteractable
