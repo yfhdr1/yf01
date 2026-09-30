@@ -217,8 +217,8 @@ def icons():
     sys.argv = [sys.argv[0], OUT]
     hb = importlib.import_module('hud_button_style')
     hb.OUT = OUT
-    hb.make('lobby_music_on', 'mdi:music', 0.44, seed=31)
-    hb.make('lobby_music_off', 'mdi:music-off', 0.44, seed=31)
+    hb.make('lobby_sound_on', 'mdi:volume-high', 0.46, seed=31)
+    hb.make('lobby_sound_off', 'mdi:volume-off', 0.46, seed=31)
     hb.make('lobby_exit', 'mdi:exit-run', 0.44, seed=37)
     hb.make('lobby_avatar', 'mdi:account', 0.5, seed=41)
     hb.make('lobby_close', 'mdi:close-thick', 0.42, seed=43)

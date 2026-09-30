@@ -265,7 +265,7 @@ public class PwLocalizer : MonoBehaviour
         while (p != null)
         {
             string n = p.name;
-            if (n == "PubgPauseMenu" || n == "ChatRoot" || n == "FpsCounter")
+            if (n == "PubgPauseMenu" || n == "ChatRoot" || n == "FpsCounter" || n == "PlayerName" || n == "ServerList" || n == "NamePreview" || n == "ServerNamePreview")
             {
                 return true;
             }

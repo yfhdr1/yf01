@@ -1,4 +1,6 @@
 using System.Collections;
+using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
@@ -7,7 +9,8 @@ using Photon.Realtime;
 public class LobbyManager : MonoBehaviour
 {
     private const string NameKey = "PlayerName";
-    private const string MusicKey = "pw_lobbymusic";
+    private const string MuteKey = "pw_lobbymute";
+    private const string AudioKey = "pw_audio";
     public GameObject loadingPanel;
     public ServerBrowser serverBrowser;
     public GameObject namePanel;
@@ -15,12 +18,16 @@ public class LobbyManager : MonoBehaviour
     public InputField nameInput;
     public Image nameInputBackground;
     public Text nameLabel;
+    public Text namePreview;
+    public TMP_Text serverNamePreview;
+    public Text connectionText;
+    public Image connectionDot;
     public GameObject exitPanel;
     public AudioSource musicSource;
     public AudioSource thunderSource;
-    public Image musicButtonImage;
-    public Sprite musicOnSprite;
-    public Sprite musicOffSprite;
+    public Image soundButtonImage;
+    public Sprite soundOnSprite;
+    public Sprite soundOffSprite;
     public RawImage fogBack;
     public RawImage fogFront;
     public Image flash;
@@ -48,10 +55,24 @@ public class LobbyManager : MonoBehaviour
     private float lastPointerX;
     private float rimBase;
     private Color inputNormalColor;
+    private Font rtlFont;
+    private Font nameFont;
+    private TMP_FontAsset rtlTmpFont;
+    private bool rtlTmpTried;
+    private string pendingNick;
+    private float nextSlowUpdate;
+    private int connectionState = -1;
+    private readonly HashSet<TMP_Text> shapedLabels = new HashSet<TMP_Text>();
     private void Start()
     {
         string savedName = PlayerPrefs.GetString(NameKey, "");
+        rtlFont = Resources.Load<Font>("Fonts/UniMahanBilal");
+        if (nameLabel != null) nameFont = nameLabel.font;
         if (nameInputBackground != null) inputNormalColor = nameInputBackground.color;
+        if (nameInput != null) nameInput.onValueChanged.AddListener(OnNameTyping);
+        if (serverBrowser != null && serverBrowser.serverNameInput != null) serverBrowser.serverNameInput.onValueChanged.AddListener(OnServerNameTyping);
+        if (namePreview != null) namePreview.gameObject.SetActive(false);
+        if (serverNamePreview != null) serverNamePreview.gameObject.SetActive(false);
         if (namePanel != null) namePanel.SetActive(false);
         if (exitPanel != null) exitPanel.SetActive(false);
         if (string.IsNullOrEmpty(savedName))
@@ -66,7 +87,8 @@ public class LobbyManager : MonoBehaviour
         if (rimLight != null) rimBase = rimLight.intensity;
         if (lightningLight != null) lightningLight.intensity = 0f;
         if (flash != null) SetAlpha(flash, 0f);
-        ApplyMusic(PlayerPrefs.GetInt(MusicKey, 1) == 1);
+        ApplyMute(PlayerPrefs.GetInt(MuteKey, 0) == 1);
+        if (musicSource != null && musicSource.clip != null && !musicSource.isPlaying) musicSource.Play();
         SetupEmbers();
         SetupDrips();
         nextFlash = Time.unscaledTime + Random.Range(3f, 7f);
@@ -74,6 +96,13 @@ public class LobbyManager : MonoBehaviour
     private void OnDisable()
     {
         flashing = false;
+    }
+    private void OnDestroy()
+    {
+        if (nameInput != null) nameInput.onValueChanged.RemoveListener(OnNameTyping);
+        if (serverBrowser != null && serverBrowser.serverNameInput != null) serverBrowser.serverNameInput.onValueChanged.RemoveListener(OnServerNameTyping);
+        AudioListener.volume = PlayerPrefs.GetFloat(AudioKey, 1f);
+        if (rtlTmpFont != null) Destroy(rtlTmpFont);
     }
     private void Update()
     {
@@ -89,6 +118,99 @@ public class LobbyManager : MonoBehaviour
         if (spinner != null && spinner.gameObject.activeInHierarchy) spinner.Rotate(0f, 0f, -300f * dt);
         if (!flashing && now >= nextFlash) StartCoroutine(Lightning());
         UpdateDrag();
+        if (now >= nextSlowUpdate)
+        {
+            nextSlowUpdate = now + 0.4f;
+            UpdateConnection();
+            ShapeServerItems();
+            if (pendingNick != null) SetSafeNickName(pendingNick);
+        }
+    }
+    private void UpdateConnection()
+    {
+        bool online = PhotonNetwork.IsConnected && !PhotonNetwork.OfflineMode;
+        int state = online ? 1 : 0;
+        if (state == connectionState) return;
+        connectionState = state;
+        Color c = online ? new Color(0.45f, 0.9f, 0.4f, 1f) : new Color(0.95f, 0.22f, 0.18f, 1f);
+        if (connectionText != null)
+        {
+            connectionText.text = online ? "Online" : "Offline";
+            connectionText.color = c;
+        }
+        if (connectionDot != null) connectionDot.color = c;
+    }
+    private TMP_FontAsset RtlTmp()
+    {
+        if (!rtlTmpTried)
+        {
+            rtlTmpTried = true;
+            if (rtlFont != null)
+            {
+                rtlTmpFont = TMP_FontAsset.CreateFontAsset(rtlFont);
+                if (rtlTmpFont != null && TMP_Settings.defaultFontAsset != null)
+                {
+                    rtlTmpFont.fallbackFontAssetTable = new List<TMP_FontAsset> { TMP_Settings.defaultFontAsset };
+                }
+            }
+        }
+        return rtlTmpFont;
+    }
+    private void ShapeServerItems()
+    {
+        if (serverBrowser == null || serverBrowser.serverListContent == null) return;
+        shapedLabels.RemoveWhere(l => l == null);
+        Transform content = serverBrowser.serverListContent;
+        for (int i = 0; i < content.childCount; i++)
+        {
+            TMP_Text label = content.GetChild(i).GetComponentInChildren<TMP_Text>(true);
+            if (label == null || shapedLabels.Contains(label) || !HasRtl(label.text)) continue;
+            TMP_FontAsset fa = RtlTmp();
+            if (fa == null) continue;
+            label.font = fa;
+            label.text = PwRtl.Visual(label.text);
+            shapedLabels.Add(label);
+        }
+    }
+    private void OnNameTyping(string value)
+    {
+        if (nameInput == null || nameInput.textComponent == null) return;
+        bool rtl = HasRtl(value);
+        Color c = nameInput.textComponent.color;
+        c.a = rtl && namePreview != null ? 0f : 1f;
+        nameInput.textComponent.color = c;
+        if (namePreview == null) return;
+        namePreview.gameObject.SetActive(rtl);
+        if (!rtl) return;
+        if (rtlFont != null) namePreview.font = rtlFont;
+        namePreview.text = PwRtl.Visual(value);
+    }
+    private void OnServerNameTyping(string value)
+    {
+        TMP_InputField field = serverBrowser != null ? serverBrowser.serverNameInput : null;
+        if (field == null || field.textComponent == null) return;
+        bool rtl = HasRtl(value);
+        TMP_FontAsset fa = rtl ? RtlTmp() : null;
+        bool usePreview = rtl && serverNamePreview != null && fa != null;
+        if (fa != null) field.textComponent.font = fa;
+        Color c = field.textComponent.color;
+        c.a = usePreview ? 0f : 1f;
+        field.textComponent.color = c;
+        if (serverNamePreview == null) return;
+        serverNamePreview.gameObject.SetActive(usePreview);
+        if (!usePreview) return;
+        serverNamePreview.font = fa;
+        serverNamePreview.text = PwRtl.Visual(value);
+    }
+    private static bool HasRtl(string s)
+    {
+        if (string.IsNullOrEmpty(s)) return false;
+        for (int i = 0; i < s.Length; i++)
+        {
+            char c = s[i];
+            if ((c >= '\u0600' && c <= '\u06FF') || (c >= '\uFB50' && c <= '\uFDFF') || (c >= '\uFE70' && c <= '\uFEFF')) return true;
+        }
+        return false;
     }
     private static float Heartbeat(float t)
     {
@@ -284,7 +406,11 @@ public class LobbyManager : MonoBehaviour
         if (namePanel == null) return;
         namePanel.SetActive(true);
         if (nameCloseButton != null) nameCloseButton.SetActive(HasName());
-        if (nameInput != null) nameInput.text = PlayerPrefs.GetString(NameKey, "");
+        if (nameInput != null)
+        {
+            nameInput.text = PlayerPrefs.GetString(NameKey, "");
+            OnNameTyping(nameInput.text);
+        }
         if (nameInputBackground != null) nameInputBackground.color = inputNormalColor;
     }
     public void CloseNamePanel()
@@ -295,7 +421,7 @@ public class LobbyManager : MonoBehaviour
     public void OnNameConfirmed()
     {
         string playerName = nameInput != null ? nameInput.text.Trim() : string.Empty;
-        if (playerName.Length == 0 || !IsValidName(playerName))
+        if (playerName.Length == 0)
         {
             if (nameInputBackground != null) nameInputBackground.color = new Color(0.65f, 0.1f, 0.1f, 0.95f);
             return;
@@ -308,33 +434,33 @@ public class LobbyManager : MonoBehaviour
     }
     private void ShowName(string playerName)
     {
-        if (nameLabel != null) nameLabel.text = playerName;
-    }
-    public void ToggleMusic()
-    {
-        bool on = PlayerPrefs.GetInt(MusicKey, 1) != 1;
-        PlayerPrefs.SetInt(MusicKey, on ? 1 : 0);
-        PlayerPrefs.Save();
-        ApplyMusic(on);
-    }
-    private void ApplyMusic(bool on)
-    {
-        if (musicButtonImage != null)
+        if (nameLabel == null) return;
+        if (HasRtl(playerName))
         {
-            Sprite s = on ? musicOnSprite : musicOffSprite;
-            if (s != null) musicButtonImage.sprite = s;
-        }
-        if (musicSource == null) return;
-        if (on)
-        {
-            musicSource.mute = false;
-            if (!musicSource.isPlaying) musicSource.Play();
+            if (rtlFont != null) nameLabel.font = rtlFont;
+            nameLabel.text = PwRtl.Visual(playerName);
         }
         else
         {
-            musicSource.mute = true;
+            if (nameFont != null) nameLabel.font = nameFont;
+            nameLabel.text = playerName;
         }
-        if (thunderSource != null) thunderSource.mute = !on;
+    }
+    public void ToggleMute()
+    {
+        bool muted = PlayerPrefs.GetInt(MuteKey, 0) != 1;
+        PlayerPrefs.SetInt(MuteKey, muted ? 1 : 0);
+        PlayerPrefs.Save();
+        ApplyMute(muted);
+    }
+    private void ApplyMute(bool muted)
+    {
+        AudioListener.volume = muted ? 0f : PlayerPrefs.GetFloat(AudioKey, 1f);
+        if (soundButtonImage != null)
+        {
+            Sprite s = muted ? soundOffSprite : soundOnSprite;
+            if (s != null) soundButtonImage.sprite = s;
+        }
     }
     public void AskExit()
     {
@@ -348,21 +474,15 @@ public class LobbyManager : MonoBehaviour
     {
         Application.Quit();
     }
-    private static void SetSafeNickName(string name)
+    private void SetSafeNickName(string name)
     {
-        if (PhotonNetwork.NetworkClientState != ClientState.Disconnecting)
+        ClientState state = PhotonNetwork.NetworkClientState;
+        if (PhotonNetwork.InRoom || state == ClientState.Disconnecting || state == ClientState.Leaving)
         {
-            PhotonNetwork.NickName = name;
+            pendingNick = name;
+            return;
         }
-    }
-    private static bool IsValidName(string value)
-    {
-        for (int i = 0; i < value.Length; i++)
-        {
-            char c = value[i];
-            bool valid = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == ' ';
-            if (!valid) return false;
-        }
-        return true;
+        pendingNick = null;
+        PhotonNetwork.NickName = name;
     }
 }

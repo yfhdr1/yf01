@@ -136,11 +136,11 @@ namespace Palewick.EditorTools
             RectTransform exit = Node("ExitBtn", root);
             Place(exit, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-30f, -36f), new Vector2(130f, 130f));
             RoundButton(exit.gameObject, Spr("lobby_exit.png"), lobby.AskExit);
-            RectTransform music = Node("MusicBtn", root);
-            Place(music, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-170f, -36f), new Vector2(130f, 130f));
-            lobby.musicOnSprite = Spr("lobby_music_on.png");
-            lobby.musicOffSprite = Spr("lobby_music_off.png");
-            lobby.musicButtonImage = RoundButton(music.gameObject, lobby.musicOnSprite, lobby.ToggleMusic);
+            RectTransform sound = Node("SoundBtn", root);
+            Place(sound, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-170f, -36f), new Vector2(130f, 130f));
+            lobby.soundOnSprite = Spr("lobby_sound_on.png");
+            lobby.soundOffSprite = Spr("lobby_sound_off.png");
+            lobby.soundButtonImage = RoundButton(sound.gameObject, lobby.soundOnSprite, lobby.ToggleMute);
             RectTransform servers = Node("ServersBtn", root);
             Place(servers, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(40f, 70f), new Vector2(430f, 102f));
             PlateButton(servers.gameObject, "lobby_btn_side.png", "Servers", 50, lobby.OnStartPressed);
@@ -153,7 +153,15 @@ namespace Palewick.EditorTools
             lobby.startButton = start;
             RectTransform flash = Stretch(Node("LightningFlash", root));
             lobby.flash = Img(flash.gameObject, null, new Color(0.8f, 0.87f, 1f, 0f), false);
-            GameObject serverPanel = BuildServerPanel(root, browser);
+            GameObject serverPanel = BuildServerPanel(root, browser, lobby);
+            RectTransform badge = Node("ConnectionBadge", root);
+            Place(badge, new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(0.5f, 0.5f), new Vector2(-320f, 318f), new Vector2(540f, 56f));
+            RectTransform dot = Node("Dot", badge);
+            Place(dot, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-120f, 0f), new Vector2(34f, 34f));
+            lobby.connectionDot = Img(dot.gameObject, Spr("lobby_ember.png"), new Color(0.95f, 0.22f, 0.18f, 1f), false);
+            RectTransform conn = Node("ConnectionText", badge);
+            Place(conn, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(20f, 0f), new Vector2(240f, 56f));
+            lobby.connectionText = Label(conn.gameObject, "Offline", 44, new Color(0.95f, 0.22f, 0.18f, 1f), TextAnchor.MiddleCenter);
             RectTransform status = Node("StatusText", root);
             Place(status, new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(0.5f, 0.5f), new Vector2(-320f, 262f), new Vector2(540f, 60f));
             TextMeshProUGUI statusTmp = Tmp(status.gameObject, "Connecting...", 34, HintColor, TextAlignmentOptions.Center);
@@ -349,7 +357,7 @@ namespace Palewick.EditorTools
             Place(t, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -20f), new Vector2(-40f, 90f));
             Label(t.gameObject, text, 64, new Color(0.85f, 0.1f, 0.08f, 1f), TextAnchor.MiddleCenter);
         }
-        private static GameObject BuildServerPanel(Transform root, ServerBrowser browser)
+        private static GameObject BuildServerPanel(Transform root, ServerBrowser browser, LobbyManager lobby)
         {
             RectTransform box = Modal("ServerPanel", root, new Vector2(1000f, 800f), new Vector2(-120f, -40f), 0.6f);
             GameObject panel = box.parent.gameObject;
@@ -370,6 +378,9 @@ namespace Palewick.EditorTools
             phText.fontStyle = FontStyles.Italic;
             RectTransform tx = Stretch(Node("Text", area));
             TextMeshProUGUI txText = Tmp(tx.gameObject, "", 38, Color.white, TextAlignmentOptions.MidlineLeft);
+            RectTransform pv = Stretch(Node("ServerNamePreview", area));
+            lobby.serverNamePreview = Tmp(pv.gameObject, "", 38, Color.white, TextAlignmentOptions.MidlineRight);
+            pv.gameObject.SetActive(false);
             TMP_InputField field = input.gameObject.AddComponent<TMP_InputField>();
             field.textViewport = area;
             field.textComponent = txText;
@@ -382,7 +393,7 @@ namespace Palewick.EditorTools
             PlateButton(create.gameObject, "lobby_btn_start.png", "Create Server", 44, browser.CreateServer);
             RectTransform list = Node("ServerList", box);
             Place(list, Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
-            list.offsetMin = new Vector2(40f, 40f);
+            list.offsetMin = new Vector2(40f, 160f);
             list.offsetMax = new Vector2(-40f, -260f);
             Img(list.gameObject, null, new Color(0f, 0f, 0f, 0.45f), true);
             ScrollRect scroll = list.gameObject.AddComponent<ScrollRect>();
@@ -406,6 +417,9 @@ namespace Palewick.EditorTools
             scroll.vertical = true;
             scroll.movementType = ScrollRect.MovementType.Clamped;
             scroll.scrollSensitivity = 30f;
+            RectTransform solo = Node("SinglePlayerBtn", box);
+            Place(solo, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 36f), new Vector2(460f, 100f));
+            PlateButton(solo.gameObject, "lobby_btn_side.png", "Single Player", 46, lobby.OnSinglePlayerPressed);
             RectTransform item = Node("ServerItem", content);
             Image itemImg = Img(item.gameObject, Spr("lobby_btn_side.png"), Color.white, true);
             Button itemBtn = item.gameObject.AddComponent<Button>();
@@ -427,9 +441,6 @@ namespace Palewick.EditorTools
             RectTransform box = Modal("NamePanel", root, new Vector2(900f, 520f), Vector2.zero, 0.85f);
             GameObject panel = box.parent.gameObject;
             Title(box, "Enter your name");
-            RectTransform hint = Node("Hint", box);
-            Place(hint, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -115f), new Vector2(-60f, 50f));
-            Label(hint.gameObject, "English letters and numbers only", 30, HintColor, TextAnchor.MiddleCenter);
             RectTransform close = Node("CloseButton", box);
             Place(close, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 0.5f), new Vector2(-10f, -10f), new Vector2(100f, 100f));
             RoundButton(close.gameObject, Spr("lobby_close.png"), lobby.CloseNamePanel);
@@ -464,7 +475,19 @@ namespace Palewick.EditorTools
             InputField field = input.gameObject.AddComponent<InputField>();
             field.textComponent = txt;
             field.placeholder = phTxt;
-            field.characterLimit = 14;
+            field.characterLimit = 20;
+            RectTransform npv = Stretch(Node("NamePreview", input));
+            npv.offsetMin = new Vector2(20f, 6f);
+            npv.offsetMax = new Vector2(-20f, -6f);
+            Text npvText = npv.gameObject.AddComponent<Text>();
+            Font rtl = Resources.Load<Font>("Fonts/UniMahanBilal");
+            npvText.font = rtl != null ? rtl : plain;
+            npvText.fontSize = 44;
+            npvText.color = Color.white;
+            npvText.alignment = TextAnchor.MiddleCenter;
+            npvText.raycastTarget = false;
+            npv.gameObject.SetActive(false);
+            lobby.namePreview = npvText;
             field.targetGraphic = inputBg;
             lobby.nameInput = field;
             RectTransform ok = Node("ConfirmBtn", box);
