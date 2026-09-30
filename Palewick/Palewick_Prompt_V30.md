@@ -289,3 +289,6 @@ PlayerHealth الجديد وEnemyAI (IsDead) انلصقوا بالمشروع، �
 - Chat: ChatSystem supports editor-built layout via Palewick/Create Chat In Canvas (Editor/ChatBuilder.cs); runtime Wire() binds to existing ChatRoot children by name.
 - Status 2026-09-30: Minimap (editor-built) OK, AutoRun OK, Chat in Canvas + horror icons OK, Door button OK (PlayerInteraction proximity scan a0f3304). Project cleanup done (unused scripts, old editor tools, stray folders). NEXT: gyro, then PUBG-style lobby + lobby chat.
 - !!! ABSOLUTE RULE: EVERY reply to the user must be in Iraqi Arabic ONLY. NEVER reply in English, not even one message. The user got very angry twice. !!!
+- Settings side tabs ALWAYS on the right in all languages (only page contents mirror for AR/KU) — 5ebe733.
+- HUD must look identical on all devices: elements anchored to nearest screen corner with fixed size (Palewick/Lock HUD To Screen Corners, Editor/HudCornerLock.cs).
+- Door button reacts on pointer-down, line-of-sight check, 0.5 s grace (PlayerInteraction + InteractPress).
