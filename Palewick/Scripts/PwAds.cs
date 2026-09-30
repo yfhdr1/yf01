@@ -3,6 +3,7 @@ using UnityEngine;
 using Object = UnityEngine.Object;
 #if PW_ADMOB
 using GoogleMobileAds.Api;
+using GoogleMobileAds.Common;
 #endif
 public class PwAds : MonoBehaviour
 {
@@ -16,6 +17,7 @@ public class PwAds : MonoBehaviour
     private static PwAds instance;
 #if PW_ADMOB
     private static bool loading;
+    private static bool sdkReady;
     private static float nextLoad;
     private static bool started;
     private static RewardedAd ad;
@@ -65,7 +67,7 @@ public class PwAds : MonoBehaviour
     private void Update()
     {
 #if PW_ADMOB
-        if (Ready || loading) return;
+        if (!sdkReady || Ready || loading) return;
         if (Time.unscaledTime < nextLoad) return;
         Preload();
 #endif
@@ -77,8 +79,7 @@ public class PwAds : MonoBehaviour
         started = true;
         try
         {
-            MobileAds.RaiseAdEventsOnUnityMainThread = true;
-            MobileAds.Initialize(status => Preload());
+            MobileAds.Initialize(status => MobileAdsEventExecutor.ExecuteInUpdate(() => sdkReady = true));
         }
         catch (Exception e)
         {
@@ -89,7 +90,7 @@ public class PwAds : MonoBehaviour
     public static void Preload()
     {
 #if PW_ADMOB
-        if (loading || Ready) return;
+        if (!sdkReady || loading || Ready) return;
         loading = true;
         nextLoad = Time.unscaledTime + 20f;
         try
@@ -98,14 +99,17 @@ public class PwAds : MonoBehaviour
             AdRequest request = new AdRequest();
             RewardedAd.Load(UnitId, request, (RewardedAd loaded, LoadAdError error) =>
             {
-                loading = false;
-                if (error != null || loaded == null)
+                MobileAdsEventExecutor.ExecuteInUpdate(() =>
                 {
-                    nextLoad = Time.unscaledTime + 30f;
-                    return;
-                }
-                ad = loaded;
-                Hook(ad);
+                    loading = false;
+                    if (error != null || loaded == null)
+                    {
+                        nextLoad = Time.unscaledTime + 30f;
+                        return;
+                    }
+                    ad = loaded;
+                    Hook(ad);
+                });
             });
         }
         catch (Exception e)
@@ -145,16 +149,16 @@ public class PwAds : MonoBehaviour
 #if PW_ADMOB
     private static void Hook(RewardedAd target)
     {
-        target.OnAdFullScreenContentClosed += () =>
+        target.OnAdFullScreenContentClosed += () => MobileAdsEventExecutor.ExecuteInUpdate(() =>
         {
             closed = true;
             Finish();
-        };
-        target.OnAdFullScreenContentFailed += error =>
+        });
+        target.OnAdFullScreenContentFailed += error => MobileAdsEventExecutor.ExecuteInUpdate(() =>
         {
             closed = true;
             Finish();
-        };
+        });
     }
     private static void Finish()
     {
