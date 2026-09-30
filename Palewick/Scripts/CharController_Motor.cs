@@ -105,13 +105,8 @@ public class CharController_Motor : MonoBehaviourPun
         }
         Vector3 r = Input.gyro.rotationRateUnbiased;
         float k = Mathf.Rad2Deg * Time.deltaTime * gyroSensitivity;
-        float yaw = -r.x;
-        float pitch = r.y;
-        if (Screen.orientation == ScreenOrientation.LandscapeRight)
-        {
-            yaw = r.x;
-            pitch = -r.y;
-        }
+        float yaw = -r.y;
+        float pitch = -r.x;
         if (gyroInvert)
         {
             yaw = -yaw;
