@@ -24,6 +24,7 @@ public class DeathScreen : MonoBehaviour
     }
     private void OnEnable()
     {
+        transform.SetAsLastSibling();
         shownAt = Time.unscaledTime;
         ready = false;
         if (group != null) group.alpha = 0f;
@@ -60,6 +61,27 @@ public class DeathScreen : MonoBehaviour
         ready = true;
         if (countdownText != null) countdownText.gameObject.SetActive(false);
         if (respawnButton != null) respawnButton.interactable = true;
+    }
+    private void LateUpdate()
+    {
+        FitLabel(respawnButton);
+        FitLabel(leaveButton);
+    }
+    private static void FitLabel(Button b)
+    {
+        if (b == null) return;
+        Text t = b.GetComponentInChildren<Text>(true);
+        if (t == null) return;
+        RectTransform r = t.rectTransform;
+        float w = r.rect.width;
+        float h = r.rect.height;
+        float pw = t.preferredWidth;
+        float ph = t.preferredHeight;
+        float s = 1f;
+        if (pw > w && pw > 0f) s = w / pw;
+        if (ph > 0f && ph * s > h) s = h / ph;
+        s = Mathf.Clamp(s, 0.3f, 1f);
+        if (Mathf.Abs(r.localScale.x - s) > 0.001f) r.localScale = new Vector3(s, s, 1f);
     }
     private void Respawn()
     {
