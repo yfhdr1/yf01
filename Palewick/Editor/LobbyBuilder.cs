@@ -172,6 +172,7 @@ namespace Palewick.EditorTools
             browser.serverPanel = serverPanel;
             browser.loadingPanel = loading;
             lobby.loadingPanel = loading;
+            PwLoginBuilder.Build(root, lobby);
             BuildAudio(lobby);
             BuildStage(lobby, viewImg);
             EditorUtility.SetDirty(lobby);

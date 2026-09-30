@@ -304,3 +304,19 @@ PlayerHealth الجديد وEnemyAI (IsDead) انلصقوا بالمشروع، �
 - Opens closed doors ahead via DoorController.OpenFrom(pos); DoorController.IsOpen added.
 - Flashlight aimed at monster within 9m/22deg slows chase to x0.7.
 - Network format, RPC names and public API unchanged.
+
+## Points System + Unity Cloud + AdMob (2026-09-30)
+- Unity Cloud project: Palewick. Packages: com.unity.services.authentication, com.unity.services.cloudsave.
+- Sign-in is REQUIRED and only Google or Email/Password (no anonymous sign-in anywhere).
+- New runtime scripts (Assets/Scripts): PwCloud.cs, PwGoogle.cs, PwPoints.cs, PwAds.cs, PwAuthUI.cs, PwPointsHud.cs, PointPickup.cs. Updated: DeathScreen.cs, PwLocalizer.cs.
+- New editor scripts (Assets/Editor, namespace Palewick.EditorTools): PwServicesDefines.cs, PwLoginBuilder.cs, PwPointsBuilder.cs. Updated: LobbyBuilder.cs (calls PwLoginBuilder.Build), GameScreensBuilder.cs (death panel points + Watch Ad button), HudCornerLock.cs (skips PointsBadge).
+- PwCloud: UnityServices init, ResumeAsync (cached session only, never creates an anonymous account), SignInEmailAsync (email is mapped to a Unity username: the email itself if <=20 valid chars, otherwise "pw" + 18 hex of SHA256), SignInGoogleAsync (Google Play Games auth code -> SignInWithGooglePlayGamesAsync), SignOut, LoadIntAsync/SaveIntAsync (Cloud Save Data.Player). Password rule: 8-30 chars with upper, lower, digit, symbol.
+- PwPoints: Cloud Save key "points". New player = 3 points (StartPoints). RespawnCost = 1. Local cache keys pw_points_<playerId> / pw_pending_<playerId>. Offline changes are queued in "pending" and pushed when signed in again (cloud value + pending, retry every 6 s). Static API: Points, Synced, CanRespawn, Add(int), TrySpend(int), event Changed(int).
+- PointPickup: scene object with PhotonView + trigger SphereCollider. Auto pickup on trigger or via the interact button (IInteractable). Claim uses RPC_Take(actorNumber) with RpcTarget.AllBufferedViaServer so a pickup is taken once per room; only the claiming player gets the point. Offline it awards locally.
+- PwAds: rewarded AdMob ad, Available/Ready/Preload/Show(Action<bool>). Ad unit id constant PwAds.AndroidRewardedId (currently the Google TEST unit ca-app-pub-3940256099942544/5224354917). Compiled only when PW_ADMOB is defined.
+- PwServicesDefines: auto adds/removes PW_ADMOB (GoogleMobileAds.Api.MobileAds) and PW_GPGS (GooglePlayGames.PlayGamesPlatform) defines for Android and Standalone. Menu: Palewick/Refresh Service Defines.
+- Death screen: Respawn spends 1 point (refunded if the revive fails), Watch Ad gives +1 point then revives, points and cost are shown, message line for "Not enough points" / "Ad not ready".
+- Lobby: LoginPanel (email, password, Sign In, Sign Up, Sign in with Google, Play Offline shown only when an account was used on this device) + PointsBadge + AccountBar (AccountName, Sign Out). Built by Palewick/Build Login Screen and also by Palewick/Build Horror Lobby.
+- Scene_A: Palewick/Build Points HUD adds PointsBadge (top center, skipped by HudCornerLock). Palewick/Create Point Pickup creates a pickup at the scene view pivot (material Assets/UI_Lobby/PointPickupMat.mat).
+- Offline rule kept: if the player signed in before on this device, Play Offline works with the cached points and syncs on the next sign-in. First sign-in needs internet.
+- Known limit: points are written by the client; Cloud Code / server validation is needed later for anti-cheat.

@@ -136,7 +136,33 @@ public class PwLocalizer : MonoBehaviour
         { "name taken", new[] { "الاسم مستخدم", "ئەم ناوە گیراوە" } },
         { "create failed", new[] { "فشل الإنشاء", "دروستکردن سەرکەوتوو نەبوو" } },
         { "server full", new[] { "الخادم ممتلئ", "سێرڤەرەکە پڕە" } },
-        { "join failed", new[] { "فشل الانضمام", "چوونەژوورەوە سەرکەوتوو نەبوو" } }
+        { "join failed", new[] { "فشل الانضمام", "چوونەژوورەوە سەرکەوتوو نەبوو" } },
+        { "sign in", new[] { "تسجيل الدخول", "چوونەژوورەوە" } },
+        { "sign up", new[] { "حساب جديد", "هەژماری نوێ" } },
+        { "sign out", new[] { "تسجيل الخروج", "چوونەدەرەوە" } },
+        { "sign in with google", new[] { "الدخول بحساب Google", "چوونەژوورەوە بە Google" } },
+        { "sign in to play", new[] { "سجّل الدخول حتى تلعب", "بۆ یاریکردن بچۆرە ژوورەوە" } },
+        { "signing in...", new[] { "جارٍ تسجيل الدخول...", "چوونەژوورەوە..." } },
+        { "email", new[] { "البريد الإلكتروني", "ئیمەیل" } },
+        { "password", new[] { "كلمة المرور", "وشەی نهێنی" } },
+        { "enter email...", new[] { "اكتب بريدك الإلكتروني...", "ئیمەیلەکەت بنووسە..." } },
+        { "enter password...", new[] { "اكتب كلمة المرور...", "وشەی نهێنی بنووسە..." } },
+        { "account", new[] { "الحساب", "هەژمار" } },
+        { "login", new[] { "تسجيل الدخول", "چوونەژوورەوە" } },
+        { "play offline", new[] { "العب بدون إنترنت", "بێ ئینتەرنێت یاری بکە" } },
+        { "no internet", new[] { "ماكو إنترنت", "ئینتەرنێت نییە" } },
+        { "wrong email or password", new[] { "البريد أو كلمة المرور غلط", "ئیمەیل یان وشەی نهێنی هەڵەیە" } },
+        { "bad email", new[] { "بريد إلكتروني غير صالح", "ئیمەیلی نادروست" } },
+        { "weak password", new[] { "كلمة المرور ضعيفة: 8 حروف على الأقل مع حرف كبير وصغير ورقم ورمز", "وشەی نهێنی لاوازە: لانیکەم ٨ پیت لەگەڵ پیتی گەورە و بچووک و ژمارە و هێما" } },
+        { "sign in failed", new[] { "فشل تسجيل الدخول", "چوونەژوورەوە سەرکەوتوو نەبوو" } },
+        { "google sign-in not available", new[] { "الدخول بـ Google غير متاح", "چوونەژوورەوە بە Google بەردەست نییە" } },
+        { "google sign-in failed", new[] { "فشل الدخول بـ Google", "چوونەژوورەوە بە Google سەرکەوتوو نەبوو" } },
+        { "points", new[] { "النقاط", "خاڵەکان" } },
+        { "watch ad", new[] { "شاهد إعلان", "ڕیکلام ببینە" } },
+        { "ad not ready", new[] { "الإعلان مو جاهز", "ڕیکلام ئامادە نییە" } },
+        { "loading ad...", new[] { "جارٍ تحميل الإعلان...", "ڕیکلام بار دەکرێت..." } },
+        { "not enough points", new[] { "نقاطك ما تكفي", "خاڵەکانت بەس نین" } },
+        { "respawn costs 1 point", new[] { "إعادة الظهور تكلف نقطة وحدة", "دووبارە دەرکەوتنەوە یەک خاڵ دەوێت" } }
     };
     private readonly List<Entry> entries = new List<Entry>();
     private readonly Dictionary<Object, Entry> lookup = new Dictionary<Object, Entry>();
@@ -273,7 +299,7 @@ public class PwLocalizer : MonoBehaviour
         while (p != null)
         {
             string n = p.name;
-            if (n == "PubgPauseMenu" || n == "ChatRoot" || n == "FpsCounter" || n == "PlayerName" || n == "ServerList" || n == "NamePreview" || n == "ServerNamePreview")
+            if (n == "PubgPauseMenu" || n == "ChatRoot" || n == "FpsCounter" || n == "PlayerName" || n == "ServerList" || n == "NamePreview" || n == "ServerNamePreview" || n == "AccountName" || n == "PointsValue" || n == "PointsGain")
             {
                 return true;
             }
