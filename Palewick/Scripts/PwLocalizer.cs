@@ -120,6 +120,7 @@ public class PwLocalizer : MonoBehaviour
         { "listen for its footsteps", new[] { "استمع إلى وقع خطواته", "گوێ لە دەنگی پێیەکانی بگرە" } },
         { "use headphones for the best experience", new[] { "استخدم سماعات الرأس للحصول على أفضل تجربة", "بۆ باشترین ئەزموون هێدفۆن بەکاربهێنە" } },
         { "tip", new[] { "نصيحة", "ئامۆژگاری" } },
+        { "it found you", new[] { "لقد وجدك", "تۆی دۆزییەوە" } },
         { "enter text...", new[] { "اكتب هنا...", "لێرە بنووسە..." } },
         { "enter room name...", new[] { "اكتب اسم الغرفة...", "ناوی ژوور بنووسە..." } },
         { "server name", new[] { "اسم الخادم", "ناوی سێرڤەر" } },
