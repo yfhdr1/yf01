@@ -141,14 +141,32 @@ public class PlayerSetup : MonoBehaviourPun, IPunObservable
         tagObject.transform.SetParent(transform, false);
         tagObject.transform.localPosition = new Vector3(0f, 2.3f, 0f);
         nameTag = tagObject.AddComponent<TextMesh>();
-        nameTag.text = GetPlayerName();
-        nameTag.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        string playerName = GetPlayerName();
+        Font rtlFont = HasRtl(playerName) ? Resources.Load<Font>("Fonts/UniMahanBilal") : null;
+        nameTag.text = rtlFont != null ? PwRtl.Visual(playerName) : playerName;
+        nameTag.font = rtlFont != null ? rtlFont : Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
         nameTag.fontSize = 48;
         nameTag.characterSize = 0.06f;
         nameTag.anchor = TextAnchor.MiddleCenter;
         nameTag.alignment = TextAlignment.Center;
         nameTag.color = Color.white;
         tagObject.GetComponent<MeshRenderer>().sharedMaterial = nameTag.font.material;
+    }
+    private static bool HasRtl(string s)
+    {
+        if (string.IsNullOrEmpty(s))
+        {
+            return false;
+        }
+        for (int i = 0; i < s.Length; i++)
+        {
+            char c = s[i];
+            if ((c >= '\u0600' && c <= '\u06FF') || (c >= '\uFB50' && c <= '\uFDFF') || (c >= '\uFE70' && c <= '\uFEFF'))
+            {
+                return true;
+            }
+        }
+        return false;
     }
     private string GetPlayerName()
     {
