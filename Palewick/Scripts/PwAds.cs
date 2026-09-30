@@ -6,7 +6,13 @@ using GoogleMobileAds.Api;
 #endif
 public class PwAds : MonoBehaviour
 {
-    public const string AndroidRewardedId = "ca-app-pub-3940256099942544/5224354917";
+    public static bool UseTestAd = true;
+    public const string TestRewardedId = "ca-app-pub-3940256099942544/5224354917";
+    public const string AndroidRewardedId = "ca-app-pub-9194615148813735/8226703242";
+    public static string UnitId
+    {
+        get { return UseTestAd ? TestRewardedId : AndroidRewardedId; }
+    }
     private static PwAds instance;
 #if PW_ADMOB
     private static bool loading;
@@ -90,7 +96,7 @@ public class PwAds : MonoBehaviour
         {
             Drop();
             AdRequest request = new AdRequest();
-            RewardedAd.Load(AndroidRewardedId, request, (RewardedAd loaded, LoadAdError error) =>
+            RewardedAd.Load(UnitId, request, (RewardedAd loaded, LoadAdError error) =>
             {
                 loading = false;
                 if (error != null || loaded == null)
