@@ -1293,7 +1293,7 @@ public class PauseMenuPUBG : MonoBehaviour
     }
     private static void Vibrate()
     {
-#if UNITY_ANDROID || UNITY_IOS
+#if (UNITY_ANDROID || UNITY_IOS) && !UNITY_EDITOR
         Handheld.Vibrate();
 #endif
     }
