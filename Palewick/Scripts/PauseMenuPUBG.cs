@@ -36,6 +36,10 @@ public class PauseMenuPUBG : MonoBehaviour
     private const float OpenTime = 0.25f;
     private const float CloseTime = 0.18f;
     private const float RowHeight = 84f;
+    private const float FrameW = 1480f;
+    private const float FrameH = 1020f;
+    private const float SideW = 340f;
+    private const float PadX = 24f;
     private const float SegHeight = 56f;
     private const float SensDefault = 0.15f;
     private static readonly string[] LevelKeys = { "low", "medium", "high", "ultra", "ultimate" };
@@ -267,16 +271,21 @@ public class PauseMenuPUBG : MonoBehaviour
         boxImg.type = Image.Type.Tiled;
         boxImg.color = Color.white;
         root = NewRect("PwRoot", boxRect);
-        Stretch(root, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+        Place(root, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(FrameW, FrameH));
+        FitFrame();
+        Image frameBg = AddImage(root, new Color(0.055f, 0.05f, 0.052f, 0.99f));
+        frameBg.sprite = grungeSprite;
+        frameBg.type = Image.Type.Tiled;
+        frameBg.raycastTarget = true;
         Image vig = AddImage(NewRect("Vignette", root), Color.white);
         vig.sprite = vignetteSprite;
         Stretch(vig.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
         Image side = AddImage(NewRect("SideBar", root), new Color(0.03f, 0.028f, 0.03f, 0.96f));
-        Stretch(side.rectTransform, new Vector2(0.83f, 0f), Vector2.one, Vector2.zero, new Vector2(0f, -100f));
+        Stretch(side.rectTransform, new Vector2(1f, 0f), Vector2.one, new Vector2(-SideW, 0f), new Vector2(0f, -100f));
         Image sideEdge = AddImage(NewRect("SideEdge", side.rectTransform), new Color(0.25f, 0.05f, 0.06f, 1f));
         Stretch(sideEdge.rectTransform, Vector2.zero, new Vector2(0f, 1f), Vector2.zero, new Vector2(2f, 0f));
         Image topLine = AddImage(NewRect("TopLine", root), new Color(0.22f, 0.2f, 0.2f, 1f));
-        Stretch(topLine.rectTransform, new Vector2(0.02f, 1f), new Vector2(0.81f, 1f), new Vector2(0f, -94f), new Vector2(0f, -92f));
+        Stretch(topLine.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(PadX, -94f), new Vector2(-(SideW + PadX), -92f));
         titleText = MakeText(root, D("title"), 40, TextAnchor.MiddleRight, bone, true);
         Place(titleText.rectTransform, Vector2.one, Vector2.one, new Vector2(-112f, -8f), new Vector2(360f, 86f));
         Image closeImg = AddImage(NewRect("CloseX", root), new Color(1f, 1f, 1f, 0.001f));
@@ -315,11 +324,11 @@ public class PauseMenuPUBG : MonoBehaviour
     {
         RectTransform rt = NewRect("Tab" + i, root);
         float top = -104f - i * 90f;
-        rt.anchorMin = new Vector2(0.83f, 1f);
+        rt.anchorMin = new Vector2(1f, 1f);
         rt.anchorMax = new Vector2(1f, 1f);
-        rt.pivot = new Vector2(0.5f, 1f);
-        rt.offsetMin = new Vector2(2f, top - 86f);
-        rt.offsetMax = new Vector2(0f, top);
+        rt.pivot = new Vector2(1f, 1f);
+        rt.sizeDelta = new Vector2(SideW - 2f, 86f);
+        rt.anchoredPosition = new Vector2(0f, top);
         Image fill = AddImage(rt, new Color(0f, 0f, 0f, 0.001f));
         fill.raycastTarget = true;
         fill.sprite = grungeSprite;
@@ -342,10 +351,10 @@ public class PauseMenuPUBG : MonoBehaviour
     {
         PageInfo info = new PageInfo();
         RectTransform container = NewRect("Page" + name, root);
-        Stretch(container, new Vector2(0.02f, 0f), new Vector2(0.81f, 1f), new Vector2(0f, 104f), new Vector2(0f, -106f));
+        Stretch(container, Vector2.zero, Vector2.one, new Vector2(PadX, 104f), new Vector2(-(SideW + PadX), -106f));
         info.container = container.gameObject;
         RectTransform strip = NewRect("Strip" + name, root);
-        Stretch(strip, new Vector2(0.02f, 1f), new Vector2(0.81f, 1f), new Vector2(0f, -92f), new Vector2(0f, -14f));
+        Stretch(strip, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(PadX, -92f), new Vector2(-(SideW + PadX), -14f));
         info.strip = strip.gameObject;
         RectTransform[] contents = new RectTransform[subKeys.Length];
         for (int s = 0; s < subKeys.Length; s++)
@@ -402,7 +411,7 @@ public class PauseMenuPUBG : MonoBehaviour
             contents[s] = content;
         }
         RectTransform bottom = NewRect("Bottom" + name, root);
-        Stretch(bottom, new Vector2(0.02f, 0f), new Vector2(0.81f, 0f), new Vector2(0f, 16f), new Vector2(0f, 88f));
+        Stretch(bottom, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(PadX, 16f), new Vector2(-(SideW + PadX), 88f));
         info.bottom = bottom.gameObject;
         pageInfos.Add(info);
         return contents;
@@ -1305,6 +1314,7 @@ public class PauseMenuPUBG : MonoBehaviour
             fxTimer = 0.5f;
             UpdatePostFX();
             ApplyCameraToggles();
+            FitFrame();
         }
         audioTimer -= Time.unscaledDeltaTime;
         if (audioTimer <= 0f)
@@ -1849,6 +1859,16 @@ public class PauseMenuPUBG : MonoBehaviour
         SetPaused(false);
         AudioListener.pause = false;
         SceneManager.LoadScene("Scene_Lobby");
+    }
+    private void FitFrame()
+    {
+        if (root == null || boxRect == null) return;
+        Vector2 area = boxRect.rect.size;
+        if (area.x <= 1f || area.y <= 1f) return;
+        float scale = Mathf.Min(1f, Mathf.Min(area.x / FrameW, area.y / FrameH));
+        Vector3 target = new Vector3(scale, scale, 1f);
+        if ((root.localScale - target).sqrMagnitude > 0.000001f) root.localScale = target;
+        if (root.sizeDelta != new Vector2(FrameW, FrameH)) root.sizeDelta = new Vector2(FrameW, FrameH);
     }
     private RectTransform NewRect(string name, Transform parent)
     {
