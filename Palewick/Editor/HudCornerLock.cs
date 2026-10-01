@@ -6,7 +6,7 @@ namespace Palewick.EditorTools
 {
     public static class HudCornerLock
     {
-        private static readonly HashSet<string> Skip = new HashSet<string> { "PubgPauseMenu", "LoadingPanel", "DeathPanel", "BrightnessOverlay", "EventSystem", "FpsCounter", "MinimapRoot", "ChatRoot", "Measure" };
+        private static readonly HashSet<string> Skip = new HashSet<string> { "PubgPauseMenu", "LoadingPanel", "DeathPanel", "BrightnessOverlay", "EventSystem", "FpsCounter", "MinimapRoot", "ChatRoot", "Measure", "PointsBadge" };
         [MenuItem("Palewick/Lock HUD To Screen Corners")]
         public static void Run()
         {
