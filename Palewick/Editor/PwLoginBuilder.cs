@@ -68,6 +68,7 @@ namespace Palewick.EditorTools
             BuildPanel(root, auth);
             BuildLanguage(root, langUI);
             BindStart(root, mode);
+            PwShopBuilder.Build(root, lobby);
             EditorUtility.SetDirty(auth);
             EditorUtility.SetDirty(mode);
             EditorUtility.SetDirty(langUI);

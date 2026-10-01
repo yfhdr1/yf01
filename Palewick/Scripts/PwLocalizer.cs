@@ -166,7 +166,17 @@ public class PwLocalizer : MonoBehaviour
         { "play online", new[] { "العب أونلاين", "بە ئینتەرنێت یاری بکە" } },
         { "how do you want to play?", new[] { "شلون تريد تلعب؟", "چۆن دەتەوێت یاری بکەیت؟" } },
         { "no internet connection", new[] { "ماكو إنترنت", "ئینتەرنێت نییە" } },
-        { "language", new[] { "اللغة", "زمان" } }
+        { "language", new[] { "اللغة", "زمان" } },
+        { "shop", new[] { "المتجر", "فرۆشگا" } },
+        { "buy", new[] { "شراء", "بیکڕە" } },
+        { "owned", new[] { "مملوك", "هەتە" } },
+        { "equip", new[] { "تجهيز", "بیکارهێنە" } },
+        { "equipped", new[] { "مجهّز", "بەکارهاتوو" } },
+        { "default skin", new[] { "الشكل الأساسي", "ڕووکاری بنەڕەت" } },
+        { "red skin", new[] { "شكل أحمر", "ڕووکاری سوور" } },
+        { "black skin", new[] { "شكل أسود", "ڕووکاری ڕەش" } },
+        { "gold skin", new[] { "شكل ذهبي", "ڕووکاری زێڕین" } },
+        { "strong flashlight", new[] { "فانوس أقوى", "چرای بەهێزتر" } }
     };
     private readonly List<Entry> entries = new List<Entry>();
     private readonly Dictionary<Object, Entry> lookup = new Dictionary<Object, Entry>();
