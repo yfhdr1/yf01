@@ -47,23 +47,29 @@ namespace Palewick.EditorTools
             Kill(root, "LoginPanel");
             Kill(root, "PointsBadge");
             Kill(root, "AccountBar");
-            Kill(root, "PlayModePanel");
+            Kill(root, "StartModePanel");
+            Kill(root, "LanguagePanel");
             PwAuthUI auth = lobby.GetComponent<PwAuthUI>();
             if (auth == null) auth = Undo.AddComponent<PwAuthUI>(lobby.gameObject);
             Undo.RecordObject(auth, "Login");
-            PwPlayMode mode = lobby.GetComponent<PwPlayMode>();
-            if (mode == null) mode = Undo.AddComponent<PwPlayMode>(lobby.gameObject);
-            Undo.RecordObject(mode, "PlayMode");
+            PwStartMode mode = lobby.GetComponent<PwStartMode>();
+            if (mode == null) mode = Undo.AddComponent<PwStartMode>(lobby.gameObject);
+            Undo.RecordObject(mode, "Login");
             mode.lobby = lobby;
+            PwLanguageUI langUI = lobby.GetComponent<PwLanguageUI>();
+            if (langUI == null) langUI = Undo.AddComponent<PwLanguageUI>(lobby.gameObject);
+            Undo.RecordObject(langUI, "Login");
             BuildBadge(root);
             BuildAccountBar(root, auth);
             Transform loading = root.Find("LoadingPanel");
             if (loading != null) loading.SetAsLastSibling();
-            BuildModePanel(root, mode);
+            BuildStartMode(root, mode);
             BuildPanel(root, auth);
-            HookStartButton(root, mode);
+            BuildLanguage(root, langUI);
+            BindStart(root, mode);
             EditorUtility.SetDirty(auth);
             EditorUtility.SetDirty(mode);
+            EditorUtility.SetDirty(langUI);
         }
         private static void Kill(Transform root, string name)
         {
@@ -108,57 +114,80 @@ namespace Palewick.EditorTools
             Place(outBtn, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(0f, -60f), new Vector2(250f, 78f));
             auth.signOutButton = PlateButton(outBtn.gameObject, "lobby_btn_side.png", "Sign Out", 38, auth.SignOut);
         }
-        private static void HookStartButton(Transform root, PwPlayMode mode)
+        private static void BindStart(Transform root, PwStartMode mode)
         {
             Transform start = root.Find("StartButton");
             if (start == null) return;
-            Button b = start.GetComponent<Button>();
-            if (b == null) return;
-            Undo.RecordObject(b, "PlayMode");
-            for (int i = b.onClick.GetPersistentEventCount() - 1; i >= 0; i--)
+            Button button = start.GetComponent<Button>();
+            if (button == null) return;
+            Undo.RecordObject(button, "Login");
+            while (button.onClick.GetPersistentEventCount() > 0)
             {
-                UnityEventTools.RemovePersistentListener(b.onClick, i);
+                UnityEventTools.RemovePersistentListener(button.onClick, 0);
             }
-            UnityEventTools.AddPersistentListener(b.onClick, mode.Open);
-            EditorUtility.SetDirty(b);
+            UnityEventTools.AddPersistentListener(button.onClick, mode.Open);
+            EditorUtility.SetDirty(button);
         }
-        private static void BuildModePanel(Transform root, PwPlayMode mode)
+        private static void BuildStartMode(Transform root, PwStartMode mode)
         {
-            RectTransform shade = Stretch(Node("PlayModePanel", root));
+            RectTransform shade = Stretch(Node("StartModePanel", root));
             Img(shade.gameObject, null, new Color(0f, 0f, 0f, 0.82f), true);
             mode.panel = shade.gameObject;
             RectTransform box = Node("Box", shade);
-            Place(box, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(960f, 560f));
+            Place(box, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(1000f, 560f));
             Image boxImg = Img(box.gameObject, Spr("lobby_panel.png"), Color.white, true);
             boxImg.type = Image.Type.Sliced;
             RectTransform title = Node("Title", box);
-            Place(title, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -26f), new Vector2(-40f, 96f));
-            Label(title.gameObject, "How do you want to play?", 52, BloodColor, TextAnchor.MiddleCenter);
+            Place(title, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -28f), new Vector2(-60f, 96f));
+            Label(title.gameObject, "How do you want to play?", 56, BloodColor, TextAnchor.MiddleCenter);
+            RectTransform online = Node("PlayOnlineBtn", box);
+            Place(online, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 30f), new Vector2(760f, 130f));
+            mode.onlineButton = PlateButton(online.gameObject, "lobby_btn_start.png", "Play Online", 56, mode.PlayOnline);
+            RectTransform offline = Node("PlayOfflineBtn", box);
+            Place(offline, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, -120f), new Vector2(760f, 130f));
+            mode.offlineButton = PlateButton(offline.gameObject, "lobby_btn_side.png", "Play Offline", 56, mode.PlayOffline);
+            RectTransform note = Node("OnlineNote", box);
+            Place(note, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 34f), new Vector2(900f, 52f));
+            mode.onlineNote = Label(note.gameObject, "No internet connection", 34, new Color(1f, 0.5f, 0.35f, 1f), TextAnchor.MiddleCenter);
+            note.gameObject.SetActive(false);
             RectTransform close = Node("CloseButton", box);
-            Place(close, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 0.5f), new Vector2(-10f, -10f), new Vector2(100f, 100f));
+            Place(close, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 0.5f), new Vector2(-12f, -12f), new Vector2(100f, 100f));
             mode.closeButton = RoundButton(close.gameObject, Spr("lobby_close.png"), mode.Close);
-            RectTransform online = Node("OnlineBtn", box);
-            Place(online, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 60f), new Vector2(680f, 118f));
-            mode.onlineButton = PlateButton(online.gameObject, "lobby_btn_start.png", "Play Online", 54, mode.PlayOnline);
-            RectTransform offline = Node("OfflineBtn", box);
-            Place(offline, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, -80f), new Vector2(680f, 118f));
-            mode.offlineButton = PlateButton(offline.gameObject, "lobby_btn_side.png", "Play Offline", 54, mode.PlayOffline);
-            RectTransform hint = Node("ModeHint", box);
-            Place(hint, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 34f), new Vector2(880f, 56f));
-            mode.hintText = Label(hint.gameObject, "No internet connection", 36, new Color(1f, 0.5f, 0.35f, 1f), TextAnchor.MiddleCenter);
-            hint.gameObject.SetActive(false);
             shade.gameObject.SetActive(false);
         }
-        private static Button RoundButton(GameObject go, Sprite sprite, UnityAction action)
+        private static void BuildLanguage(Transform root, PwLanguageUI langUI)
         {
-            Image img = Img(go, sprite, Color.white, true);
-            Button b = go.AddComponent<Button>();
-            b.targetGraphic = img;
-            ColorBlock cb = b.colors;
-            cb.pressedColor = new Color(0.7f, 0.55f, 0.55f, 1f);
-            b.colors = cb;
-            if (action != null) UnityEventTools.AddPersistentListener(b.onClick, action);
-            return b;
+            RectTransform shade = Stretch(Node("LanguagePanel", root));
+            Img(shade.gameObject, null, new Color(0f, 0f, 0f, 0.96f), true);
+            shade.SetAsLastSibling();
+            langUI.panel = shade.gameObject;
+            RectTransform art = Stretch(Node("Art", shade));
+            Image artImg = Img(art.gameObject, Spr("lobby_bg.jpg"), new Color(0.3f, 0.26f, 0.26f, 1f), false);
+            AspectRatioFitter fit = art.gameObject.AddComponent<AspectRatioFitter>();
+            fit.aspectMode = AspectRatioFitter.AspectMode.EnvelopeParent;
+            fit.aspectRatio = 16f / 9f;
+            artImg.preserveAspect = false;
+            RectTransform vig = Stretch(Node("Vignette", shade));
+            Img(vig.gameObject, Spr("lobby_vignette.png"), Color.white, false);
+            RectTransform blood = Node("BloodTop", shade);
+            Place(blood, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f), Vector2.zero, new Vector2(0f, 220f));
+            Img(blood.gameObject, Spr("lobby_blood_top.png"), Color.white, false);
+            RectTransform box = Node("Box", shade);
+            Place(box, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(900f, 760f));
+            Image boxImg = Img(box.gameObject, Spr("lobby_panel.png"), Color.white, true);
+            boxImg.type = Image.Type.Sliced;
+            RectTransform title = Node("Title", box);
+            Place(title, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -30f), new Vector2(-60f, 110f));
+            Label(title.gameObject, "LANGUAGE", 72, BloodColor, TextAnchor.MiddleCenter);
+            RectTransform kurdish = Node("KurdishBtn", box);
+            Place(kurdish, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 150f), new Vector2(700f, 140f));
+            langUI.kurdishButton = PlateButton(kurdish.gameObject, "lobby_btn_start.png", "Kurdish", 60, langUI.PickKurdish);
+            RectTransform arabic = Node("ArabicBtn", box);
+            Place(arabic, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, -10f), new Vector2(700f, 140f));
+            langUI.arabicButton = PlateButton(arabic.gameObject, "lobby_btn_side.png", "Arabic", 60, langUI.PickArabic);
+            RectTransform english = Node("EnglishBtn", box);
+            Place(english, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, -170f), new Vector2(700f, 140f));
+            langUI.englishButton = PlateButton(english.gameObject, "lobby_btn_side.png", "English", 60, langUI.PickEnglish);
         }
         private static void BuildPanel(Transform root, PwAuthUI auth)
         {
@@ -308,6 +337,17 @@ namespace Palewick.EditorTools
             sh.effectColor = new Color(0f, 0f, 0f, 0.85f);
             sh.effectDistance = new Vector2(3f, -3f);
             return t;
+        }
+        private static Button RoundButton(GameObject go, Sprite sprite, UnityAction action)
+        {
+            Image img = Img(go, sprite, Color.white, true);
+            Button b = go.AddComponent<Button>();
+            b.targetGraphic = img;
+            ColorBlock cb = b.colors;
+            cb.pressedColor = new Color(0.7f, 0.55f, 0.55f, 1f);
+            b.colors = cb;
+            if (action != null) UnityEventTools.AddPersistentListener(b.onClick, action);
+            return b;
         }
         private static Button PlateButton(GameObject go, string sprite, string text, int size, UnityAction action)
         {

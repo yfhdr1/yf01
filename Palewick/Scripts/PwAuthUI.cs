@@ -16,7 +16,7 @@ public class PwAuthUI : MonoBehaviour
     public RectTransform spinner;
     private bool working;
     private bool offlineMode;
-    private bool noNet;
+    private string status = string.Empty;
     public static bool Ready
     {
         get { return PwCloud.SignedIn || PlayerPrefs.GetInt(OfflineKey, 0) == 1; }
@@ -29,6 +29,7 @@ public class PwAuthUI : MonoBehaviour
             passwordInput.asteriskChar = '*';
         }
         if (emailInput != null) emailInput.contentType = InputField.ContentType.EmailAddress;
+        if (panel != null) panel.SetActive(!PwCloud.HasAccount);
     }
     private void OnEnable()
     {
@@ -41,36 +42,32 @@ public class PwAuthUI : MonoBehaviour
     private void Start()
     {
         if (emailInput != null) emailInput.text = PwCloud.SavedAccountType == "email" ? PwCloud.SavedAccount : string.Empty;
-        bool known = PwCloud.HasAccount || PlayerPrefs.GetInt(OfflineKey, 0) == 1;
-        if (panel != null) panel.SetActive(!known);
-        if (known) offlineMode = true;
-        Resume(known);
+        Resume();
     }
     private void Update()
     {
         if (spinner != null)
         {
-            bool spin = working;
+            bool spin = working && panel != null && panel.activeSelf;
             if (spinner.gameObject.activeSelf != spin) spinner.gameObject.SetActive(spin);
             if (spin) spinner.Rotate(0f, 0f, -260f * Time.unscaledDeltaTime);
         }
     }
-    private async void Resume(bool silent)
+    private async void Resume()
     {
-        if (!silent) SetStatus("Connecting...");
-        SetWorking(!silent);
+        if (!PwCloud.HasAccount) SetStatus("Sign in to play");
+        SetWorking(true);
         string error = await PwCloud.ResumeAsync();
         SetWorking(false);
-        noNet = error == PwCloud.NoInternet;
         if (error == null)
         {
-            offlineMode = false;
             Close();
             return;
         }
-        if (silent)
+        if (error != PwCloud.NeedLogin && PwCloud.HasAccount)
         {
-            Refresh();
+            offlineMode = true;
+            Close();
             return;
         }
         Open();
@@ -93,7 +90,6 @@ public class PwAuthUI : MonoBehaviour
         SetWorking(true);
         string error = await PwCloud.SignInEmailAsync(mail, pass, create);
         SetWorking(false);
-        noNet = error == PwCloud.NoInternet;
         if (error == null)
         {
             offlineMode = false;
@@ -101,7 +97,6 @@ public class PwAuthUI : MonoBehaviour
             return;
         }
         SetStatus(error);
-        Refresh();
     }
     public async void SignInGoogle()
     {
@@ -115,7 +110,6 @@ public class PwAuthUI : MonoBehaviour
         SetWorking(true);
         string error = await PwCloud.SignInGoogleAsync();
         SetWorking(false);
-        noNet = error == PwCloud.NoInternet;
         if (error == null)
         {
             offlineMode = false;
@@ -123,16 +117,14 @@ public class PwAuthUI : MonoBehaviour
             return;
         }
         SetStatus(error);
-        Refresh();
     }
     public void PlayOffline()
     {
+        if (!PwCloud.HasAccount) return;
         offlineMode = true;
         PlayerPrefs.SetInt(OfflineKey, 1);
         PlayerPrefs.Save();
-        if (panel != null) panel.SetActive(false);
-        SetStatus(string.Empty);
-        Refresh();
+        Close();
     }
     public void SignOut()
     {
@@ -144,11 +136,6 @@ public class PwAuthUI : MonoBehaviour
         Open();
         SetStatus("Sign in to play");
     }
-    public void OpenPanel()
-    {
-        Open();
-        SetStatus(string.Empty);
-    }
     private void Open()
     {
         if (panel != null && !panel.activeSelf) panel.SetActive(true);
@@ -156,7 +143,7 @@ public class PwAuthUI : MonoBehaviour
     }
     private void Close()
     {
-        if (PwCloud.SignedIn)
+        if (PwCloud.SignedIn || offlineMode)
         {
             PlayerPrefs.SetInt(OfflineKey, 1);
             PlayerPrefs.Save();
@@ -172,10 +159,10 @@ public class PwAuthUI : MonoBehaviour
     }
     private void SetStatus(string value)
     {
-        string text = value == null ? string.Empty : value;
+        status = value == null ? string.Empty : value;
         if (statusText == null) return;
-        statusText.text = text;
-        statusText.gameObject.SetActive(text.Length > 0);
+        statusText.text = status;
+        statusText.gameObject.SetActive(status.Length > 0);
     }
     private void Refresh()
     {
@@ -185,7 +172,7 @@ public class PwAuthUI : MonoBehaviour
         if (googleButton != null) googleButton.interactable = !working && PwCloud.GoogleAvailable;
         if (offlineButton != null)
         {
-            bool show = !signedIn && (noNet || PwCloud.HasAccount);
+            bool show = !signedIn && PwCloud.HasAccount;
             if (offlineButton.gameObject.activeSelf != show) offlineButton.gameObject.SetActive(show);
             offlineButton.interactable = !working;
         }

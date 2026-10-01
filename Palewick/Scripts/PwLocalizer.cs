@@ -163,11 +163,10 @@ public class PwLocalizer : MonoBehaviour
         { "loading ad...", new[] { "جارٍ تحميل الإعلان...", "ڕیکلام بار دەکرێت..." } },
         { "not enough points", new[] { "نقاطك ما تكفي", "خاڵەکانت بەس نین" } },
         { "respawn costs 1 point", new[] { "إعادة الظهور تكلف نقطة وحدة", "دووبارە دەرکەوتنەوە یەک خاڵ دەوێت" } },
+        { "play online", new[] { "العب أونلاين", "بە ئینتەرنێت یاری بکە" } },
         { "how do you want to play?", new[] { "شلون تريد تلعب؟", "چۆن دەتەوێت یاری بکەیت؟" } },
-        { "play online", new[] { "العب أونلاين", "ئۆنلاین یاری بکە" } },
-        { "play offline", new[] { "العب أوفلاين", "ئۆفلاین یاری بکە" } },
-        { "no internet connection", new[] { "ماكو اتصال إنترنت", "پەیوەندی ئینتەرنێت نییە" } },
-        { "choose your language", new[] { "اختر لغتك", "زمانەکەت هەڵبژێرە" } }
+        { "no internet connection", new[] { "ماكو إنترنت", "ئینتەرنێت نییە" } },
+        { "language", new[] { "اللغة", "زمان" } }
     };
     private readonly List<Entry> entries = new List<Entry>();
     private readonly Dictionary<Object, Entry> lookup = new Dictionary<Object, Entry>();
@@ -304,7 +303,7 @@ public class PwLocalizer : MonoBehaviour
         while (p != null)
         {
             string n = p.name;
-            if (n == "PubgPauseMenu" || n == "ChatRoot" || n == "FpsCounter" || n == "PlayerName" || n == "ServerList" || n == "NamePreview" || n == "ServerNamePreview" || n == "AccountName" || n == "PointsValue" || n == "PointsGain")
+            if (n == "PubgPauseMenu" || n == "ChatRoot" || n == "FpsCounter" || n == "PlayerName" || n == "ServerList" || n == "NamePreview" || n == "ServerNamePreview" || n == "AccountName" || n == "PointsValue" || n == "PointsGain" || n == "LanguagePanel")
             {
                 return true;
             }

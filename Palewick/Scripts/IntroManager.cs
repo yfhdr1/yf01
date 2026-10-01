@@ -43,11 +43,6 @@ public class IntroManager : MonoBehaviour
     private float nextTip;
     private int tipIndex;
     private AsyncOperation loadOp;
-    private string TargetScene()
-    {
-        if (!PlayerPrefs.HasKey("pw_lang") && Application.CanStreamedLevelBeLoaded("Scene_Language")) return "Scene_Language";
-        return nextScene;
-    }
     private void Awake()
     {
         if (videoPlayer != null)
@@ -329,7 +324,7 @@ public class IntroManager : MonoBehaviour
         loadStart = Time.unscaledTime;
         if (loadOp == null)
         {
-            loadOp = SceneManager.LoadSceneAsync(TargetScene());
+            loadOp = SceneManager.LoadSceneAsync(nextScene);
             if (loadOp != null)
             {
                 loadOp.allowSceneActivation = false;
