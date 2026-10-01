@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.IO;
 using UnityEditor;
 using UnityEditor.Events;
 using UnityEditor.SceneManagement;
@@ -91,14 +92,14 @@ namespace Palewick.EditorTools
                 card.button = PlateButton(row.gameObject, "lobby_btn_side.png", string.Empty, 1, null);
                 Transform oldLabel = row.Find("Label");
                 if (oldLabel != null) Undo.DestroyObjectImmediate(oldLabel.gameObject);
-                if (skins[i] >= 0)
-                {
-                    RectTransform swatch = Node("Swatch", row);
-                    Place(swatch, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(66f, 0f), new Vector2(56f, 56f));
-                    Img(swatch.gameObject, Spr("lobby_ember.png"), PwLoadout.ColorFor(skins[i]), false);
-                }
+                RectTransform icon = Node("Icon", row);
+                Place(icon, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(72f, 0f), new Vector2(82f, 82f));
+                Sprite iconSprite = skins[i] >= 0 ? Spr("lobby_avatar.png") : FindSprite("hud_flashlight");
+                Color iconColor = skins[i] >= 0 ? PwLoadout.ColorFor(skins[i]) : Color.white;
+                Image iconImg = Img(icon.gameObject, iconSprite, iconColor, false);
+                iconImg.preserveAspect = true;
                 RectTransform name = Node("Name", row);
-                Place(name, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(110f, 0f), new Vector2(560f, 64f));
+                Place(name, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(130f, 0f), new Vector2(540f, 64f));
                 Label(name.gameObject, names[i], 42, TextColor, TextAnchor.MiddleLeft);
                 RectTransform coin = Node("Coin", row);
                 Place(coin, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(150f, 0f), new Vector2(38f, 38f));
@@ -127,6 +128,18 @@ namespace Palewick.EditorTools
         private static Sprite Spr(string file)
         {
             return AssetDatabase.LoadAssetAtPath<Sprite>(ArtFolder + "/" + file);
+        }
+        private static Sprite FindSprite(string file)
+        {
+            string[] guids = AssetDatabase.FindAssets(file + " t:Sprite");
+            for (int i = 0; i < guids.Length; i++)
+            {
+                string path = AssetDatabase.GUIDToAssetPath(guids[i]);
+                if (Path.GetFileNameWithoutExtension(path) != file) continue;
+                Sprite sprite = AssetDatabase.LoadAssetAtPath<Sprite>(path);
+                if (sprite != null) return sprite;
+            }
+            return null;
         }
         private static RectTransform Node(string name, Transform parent)
         {
