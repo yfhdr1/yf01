@@ -187,7 +187,20 @@ public class PwLocalizer : MonoBehaviour
         { "shiny gold body", new[] { "جسم ذهبي لامع", "لەشی زێڕینی بریقەدار" } },
         { "the rarest look in the game", new[] { "أندر شكل باللعبة", "دەگمەنترین ڕووکار لە یارییەکە" } },
         { "light range 45m instead of 30m", new[] { "مدى الضوء 45م بدل 30م", "مەودای ڕووناکی ٤٥م لە جیاتی ٣٠م" } },
-        { "wider beam and brighter", new[] { "شعاع أوسع وأقوى", "تیشکی فراوانتر و ڕووناکتر" } }
+        { "wider beam and brighter", new[] { "شعاع أوسع وأقوى", "تیشکی فراوانتر و ڕووناکتر" } },
+        { "character", new[] { "الشخصية", "کەسایەتی" } },
+        { "gear", new[] { "العدّة", "کەلوپەل" } },
+        { "white light", new[] { "ضوء أبيض", "ڕووناکی سپی" } },
+        { "red light", new[] { "ضوء أحمر", "ڕووناکی سوور" } },
+        { "blue light", new[] { "ضوء أزرق", "ڕووناکی شین" } },
+        { "normal warm white beam", new[] { "شعاع أبيض دافئ عادي", "تیشکی سپی ئاسایی" } },
+        { "blood red beam", new[] { "شعاع أحمر دموي", "تیشکی سووری خوێنین" } },
+        { "scary red light in the dark", new[] { "ضوء أحمر مرعب بالظلام", "ڕووناکی سووری ترسناک لە تاریکی" } },
+        { "cold blue beam", new[] { "شعاع أزرق بارد", "تیشکی شینی سارد" } },
+        { "clear light for dark rooms", new[] { "ضوء واضح للغرف المظلمة", "ڕووناکی ڕوون بۆ ژووری تاریک" } },
+        { "watch a short video", new[] { "شاهد فيديو قصير", "ڤیدیۆیەکی کورت ببینە" } },
+        { "get 1 point every minute", new[] { "تاخذ نقطة كل دقيقة", "هەر خولەکێک یەک خاڵ وەردەگریت" } },
+        { "please wait", new[] { "انتظر شوية", "تکایە چاوەڕێ بکە" } }
     };
     private readonly List<Entry> entries = new List<Entry>();
     private readonly Dictionary<Object, Entry> lookup = new Dictionary<Object, Entry>();

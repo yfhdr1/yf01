@@ -4,7 +4,7 @@ using UnityEngine;
 using Hashtable = ExitGames.Client.Photon.Hashtable;
 public class PwLoadout : MonoBehaviour
 {
-    public const string SkinProp = "pw_skin";
+    public const string LookProp = "pw_look";
     private const float Interval = 1f;
     private static readonly Color[] SkinColors =
     {
@@ -13,13 +13,23 @@ public class PwLoadout : MonoBehaviour
         new Color(0.16f, 0.16f, 0.18f, 1f),
         new Color(0.86f, 0.66f, 0.22f, 1f)
     };
+    private static readonly Color[] LampColors =
+    {
+        new Color(1f, 0.96f, 0.88f, 1f),
+        new Color(1f, 0.28f, 0.2f, 1f),
+        new Color(0.42f, 0.68f, 1f, 1f)
+    };
     private static PwLoadout instance;
     private static readonly Dictionary<Transform, int> appliedFlash = new Dictionary<Transform, int>();
     private float next;
-    private int pushedSkin = -1;
+    private int pushedLook = -1;
     public static Color ColorFor(int index)
     {
         return SkinColors[Mathf.Clamp(index, 0, SkinColors.Length - 1)];
+    }
+    public static Color LampColorFor(int index)
+    {
+        return LampColors[Mathf.Clamp(index, 0, LampColors.Length - 1)];
     }
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     private static void Boot()
@@ -41,17 +51,17 @@ public class PwLoadout : MonoBehaviour
     {
         if (Time.unscaledTime < next) return;
         next = Time.unscaledTime + Interval;
-        PushSkin();
+        PushLook();
         ApplyAll();
     }
-    private void PushSkin()
+    private void PushLook()
     {
         if (!PhotonNetwork.InRoom || PhotonNetwork.LocalPlayer == null) return;
-        int value = PwShop.Skin;
-        if (pushedSkin == value) return;
-        pushedSkin = value;
+        int value = PwShop.Look;
+        if (pushedLook == value) return;
+        pushedLook = value;
         Hashtable props = new Hashtable();
-        props[SkinProp] = value;
+        props[LookProp] = value;
         PhotonNetwork.LocalPlayer.SetCustomProperties(props);
     }
     private void ApplyAll()
@@ -63,18 +73,21 @@ public class PwLoadout : MonoBehaviour
             if (player == null) continue;
             PhotonView view = player.GetComponent<PhotonView>();
             bool mine = !PhotonNetwork.InRoom || view == null || view.IsMine;
-            int index = 0;
+            int look = 0;
             if (mine)
             {
-                index = PwShop.Skin;
+                look = PwShop.Look;
             }
             else if (view != null && view.Owner != null)
             {
                 object raw;
-                if (view.Owner.CustomProperties.TryGetValue(SkinProp, out raw) && raw is int) index = (int)raw;
+                if (view.Owner.CustomProperties.TryGetValue(LookProp, out raw) && raw is int) look = (int)raw;
             }
-            Tint(player.transform, index);
-            if (mine) Flashlight(player.transform);
+            int skin = look % 10;
+            int lamp = (look / 10) % 10;
+            bool upgraded = look >= 100;
+            Tint(player.transform, skin);
+            Flashlight(player.transform, lamp, upgraded);
         }
     }
     public static void Tint(Transform root, int index)
@@ -85,8 +98,7 @@ public class PwLoadout : MonoBehaviour
         for (int i = 0; i < renderers.Length; i++)
         {
             Renderer r = renderers[i];
-            if (r == null || r is ParticleSystemRenderer) continue;
-            if (!(r is SkinnedMeshRenderer)) continue;
+            if (r == null || !(r is SkinnedMeshRenderer)) continue;
             Material m = r.material;
             if (m == null || !m.HasProperty("_Color")) continue;
             if (m.color != color) m.color = color;
@@ -105,11 +117,11 @@ public class PwLoadout : MonoBehaviour
             appliedFlash.Remove(dead[i]);
         }
     }
-    private static void Flashlight(Transform root)
+    private static void Flashlight(Transform root, int lamp, bool upgraded)
     {
         if (root == null) return;
         Clean();
-        int want = PwShop.FlashlightUpgraded ? 1 : 0;
+        int want = (upgraded ? 100 : 0) + Mathf.Clamp(lamp, 0, 2);
         int done;
         if (appliedFlash.TryGetValue(root, out done) && done == want) return;
         Light[] lights = root.GetComponentsInChildren<Light>(true);
@@ -117,7 +129,8 @@ public class PwLoadout : MonoBehaviour
         {
             Light l = lights[i];
             if (l == null || l.type != LightType.Spot) continue;
-            if (want == 1)
+            l.color = LampColorFor(lamp);
+            if (upgraded)
             {
                 l.range = 45f;
                 l.spotAngle = 95f;
