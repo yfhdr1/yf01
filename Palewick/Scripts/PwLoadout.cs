@@ -14,7 +14,7 @@ public class PwLoadout : MonoBehaviour
         new Color(0.86f, 0.66f, 0.22f, 1f)
     };
     private static PwLoadout instance;
-    private static readonly Dictionary<int, int> appliedFlash = new Dictionary<int, int>();
+    private static readonly Dictionary<Transform, int> appliedFlash = new Dictionary<Transform, int>();
     private float next;
     private int pushedSkin = -1;
     public static Color ColorFor(int index)
@@ -92,13 +92,26 @@ public class PwLoadout : MonoBehaviour
             if (m.color != color) m.color = color;
         }
     }
+    private static void Clean()
+    {
+        if (appliedFlash.Count < 8) return;
+        List<Transform> dead = new List<Transform>();
+        foreach (KeyValuePair<Transform, int> pair in appliedFlash)
+        {
+            if (pair.Key == null) dead.Add(pair.Key);
+        }
+        for (int i = 0; i < dead.Count; i++)
+        {
+            appliedFlash.Remove(dead[i]);
+        }
+    }
     private static void Flashlight(Transform root)
     {
         if (root == null) return;
-        int id = root.GetInstanceID();
+        Clean();
         int want = PwShop.FlashlightUpgraded ? 1 : 0;
         int done;
-        if (appliedFlash.TryGetValue(id, out done) && done == want) return;
+        if (appliedFlash.TryGetValue(root, out done) && done == want) return;
         Light[] lights = root.GetComponentsInChildren<Light>(true);
         for (int i = 0; i < lights.Length; i++)
         {
@@ -117,6 +130,6 @@ public class PwLoadout : MonoBehaviour
                 l.intensity = 4f;
             }
         }
-        appliedFlash[id] = want;
+        appliedFlash[root] = want;
     }
 }
