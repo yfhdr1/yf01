@@ -49,6 +49,7 @@ namespace Palewick.EditorTools
             Kill(root, "AccountBar");
             Kill(root, "StartModePanel");
             Kill(root, "LanguagePanel");
+            Kill(root, "SinglePlayerBtn");
             PwAuthUI auth = lobby.GetComponent<PwAuthUI>();
             if (auth == null) auth = Undo.AddComponent<PwAuthUI>(lobby.gameObject);
             Undo.RecordObject(auth, "Login");
