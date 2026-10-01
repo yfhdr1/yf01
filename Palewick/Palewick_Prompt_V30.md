@@ -320,3 +320,11 @@ PlayerHealth الجديد وEnemyAI (IsDead) انلصقوا بالمشروع، �
 - Scene_A: Palewick/Build Points HUD adds PointsBadge (top center, skipped by HudCornerLock). Palewick/Create Point Pickup creates a pickup at the scene view pivot (material Assets/UI_Lobby/PointPickupMat.mat).
 - Offline rule kept: if the player signed in before on this device, Play Offline works with the cached points and syncs on the next sign-in. First sign-in needs internet.
 - Known limit: points are written by the client; Cloud Code / server validation is needed later for anti-cheat.
+
+## Flow + Settings Layout Update (2026-10-01)
+- Login screen appears ONLY the first time. If the device already has an account (or offline was accepted once) the lobby opens directly and the session resumes silently in the background.
+- With no internet the player is never blocked: the Play Offline button shows whenever the connection fails, and points keep working from the local cache.
+- New script Assets/Scripts/PwPlayMode.cs: the lobby START button now opens a panel asking Play Online / Play Offline. Online calls LobbyManager.OnStartPressed (server browser), Offline calls LobbyManager.OnSinglePlayerPressed. Online is disabled automatically when Application.internetReachability is NotReachable. Built by Palewick/Build Login Screen (PwLoginBuilder also rewires the START button).
+- New scene Assets/a.loby/Scene_Language.unity + Assets/Scripts/PwLanguageScreen.cs + Assets/Editor/PwLanguageBuilder.cs (menu Palewick/Build Language Screen). It shows once after the intro to pick Kurdish / Arabic / English, saves pw_lang and loads Scene_Lobby. IntroManager.TargetScene() loads Scene_Language only when pw_lang has never been set and the scene exists in Build Settings.
+- Scene order in Build Settings: Scene_Intro, Scene_Language, Scene_Lobby, Scene_A.
+- PauseMenuPUBG settings window is no longer full screen with fractional anchors. It is now a fixed centered box: BoxW 1400, BoxH 980, SideW 300 (tab column, always on the right), PadX 26, ContentRight 322, clamped to the canvas size by FitBox(). Every element inside uses pixel offsets, so shapes, sizes and positions are identical on every device.

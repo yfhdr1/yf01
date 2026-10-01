@@ -16,7 +16,7 @@ public class PwAuthUI : MonoBehaviour
     public RectTransform spinner;
     private bool working;
     private bool offlineMode;
-    private string status = string.Empty;
+    private bool noNet;
     public static bool Ready
     {
         get { return PwCloud.SignedIn || PlayerPrefs.GetInt(OfflineKey, 0) == 1; }
@@ -29,7 +29,6 @@ public class PwAuthUI : MonoBehaviour
             passwordInput.asteriskChar = '*';
         }
         if (emailInput != null) emailInput.contentType = InputField.ContentType.EmailAddress;
-        if (panel != null) panel.SetActive(true);
     }
     private void OnEnable()
     {
@@ -42,7 +41,10 @@ public class PwAuthUI : MonoBehaviour
     private void Start()
     {
         if (emailInput != null) emailInput.text = PwCloud.SavedAccountType == "email" ? PwCloud.SavedAccount : string.Empty;
-        Resume();
+        bool known = PwCloud.HasAccount || PlayerPrefs.GetInt(OfflineKey, 0) == 1;
+        if (panel != null) panel.SetActive(!known);
+        if (known) offlineMode = true;
+        Resume(known);
     }
     private void Update()
     {
@@ -53,15 +55,22 @@ public class PwAuthUI : MonoBehaviour
             if (spin) spinner.Rotate(0f, 0f, -260f * Time.unscaledDeltaTime);
         }
     }
-    private async void Resume()
+    private async void Resume(bool silent)
     {
-        SetStatus("Connecting...");
-        SetWorking(true);
+        if (!silent) SetStatus("Connecting...");
+        SetWorking(!silent);
         string error = await PwCloud.ResumeAsync();
         SetWorking(false);
+        noNet = error == PwCloud.NoInternet;
         if (error == null)
         {
+            offlineMode = false;
             Close();
+            return;
+        }
+        if (silent)
+        {
+            Refresh();
             return;
         }
         Open();
@@ -84,12 +93,15 @@ public class PwAuthUI : MonoBehaviour
         SetWorking(true);
         string error = await PwCloud.SignInEmailAsync(mail, pass, create);
         SetWorking(false);
+        noNet = error == PwCloud.NoInternet;
         if (error == null)
         {
+            offlineMode = false;
             Close();
             return;
         }
         SetStatus(error);
+        Refresh();
     }
     public async void SignInGoogle()
     {
@@ -103,20 +115,24 @@ public class PwAuthUI : MonoBehaviour
         SetWorking(true);
         string error = await PwCloud.SignInGoogleAsync();
         SetWorking(false);
+        noNet = error == PwCloud.NoInternet;
         if (error == null)
         {
+            offlineMode = false;
             Close();
             return;
         }
         SetStatus(error);
+        Refresh();
     }
     public void PlayOffline()
     {
-        if (!PwCloud.HasAccount) return;
         offlineMode = true;
         PlayerPrefs.SetInt(OfflineKey, 1);
         PlayerPrefs.Save();
-        Close();
+        if (panel != null) panel.SetActive(false);
+        SetStatus(string.Empty);
+        Refresh();
     }
     public void SignOut()
     {
@@ -127,6 +143,11 @@ public class PwAuthUI : MonoBehaviour
         if (passwordInput != null) passwordInput.text = string.Empty;
         Open();
         SetStatus("Sign in to play");
+    }
+    public void OpenPanel()
+    {
+        Open();
+        SetStatus(string.Empty);
     }
     private void Open()
     {
@@ -151,24 +172,20 @@ public class PwAuthUI : MonoBehaviour
     }
     private void SetStatus(string value)
     {
-        status = value == null ? string.Empty : value;
+        string text = value == null ? string.Empty : value;
         if (statusText == null) return;
-        statusText.text = status;
-        statusText.gameObject.SetActive(status.Length > 0);
+        statusText.text = text;
+        statusText.gameObject.SetActive(text.Length > 0);
     }
     private void Refresh()
     {
         bool signedIn = PwCloud.SignedIn;
         if (signInButton != null) signInButton.interactable = !working;
         if (signUpButton != null) signUpButton.interactable = !working;
-        if (googleButton != null)
-        {
-            googleButton.interactable = !working && PwCloud.GoogleAvailable;
-            googleButton.gameObject.SetActive(true);
-        }
+        if (googleButton != null) googleButton.interactable = !working && PwCloud.GoogleAvailable;
         if (offlineButton != null)
         {
-            bool show = !signedIn && PwCloud.HasAccount;
+            bool show = !signedIn && (noNet || PwCloud.HasAccount);
             if (offlineButton.gameObject.activeSelf != show) offlineButton.gameObject.SetActive(show);
             offlineButton.interactable = !working;
         }

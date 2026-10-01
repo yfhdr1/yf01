@@ -162,7 +162,12 @@ public class PwLocalizer : MonoBehaviour
         { "ad not ready", new[] { "الإعلان مو جاهز", "ڕیکلام ئامادە نییە" } },
         { "loading ad...", new[] { "جارٍ تحميل الإعلان...", "ڕیکلام بار دەکرێت..." } },
         { "not enough points", new[] { "نقاطك ما تكفي", "خاڵەکانت بەس نین" } },
-        { "respawn costs 1 point", new[] { "إعادة الظهور تكلف نقطة وحدة", "دووبارە دەرکەوتنەوە یەک خاڵ دەوێت" } }
+        { "respawn costs 1 point", new[] { "إعادة الظهور تكلف نقطة وحدة", "دووبارە دەرکەوتنەوە یەک خاڵ دەوێت" } },
+        { "how do you want to play?", new[] { "شلون تريد تلعب؟", "چۆن دەتەوێت یاری بکەیت؟" } },
+        { "play online", new[] { "العب أونلاين", "ئۆنلاین یاری بکە" } },
+        { "play offline", new[] { "العب أوفلاين", "ئۆفلاین یاری بکە" } },
+        { "no internet connection", new[] { "ماكو اتصال إنترنت", "پەیوەندی ئینتەرنێت نییە" } },
+        { "choose your language", new[] { "اختر لغتك", "زمانەکەت هەڵبژێرە" } }
     };
     private readonly List<Entry> entries = new List<Entry>();
     private readonly Dictionary<Object, Entry> lookup = new Dictionary<Object, Entry>();
