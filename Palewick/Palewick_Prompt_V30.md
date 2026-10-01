@@ -39,8 +39,10 @@ Assets/Scripts/FootstepSoundController.cs
 Assets/Scripts/CameraTurnSfx.cs
 Assets/Scripts/DoorController.cs
 Assets/a.loby/Scripts/LobbyManager.cs
+Assets/a.loby/Scripts/SafeAudioListener.cs
 Assets/a.last/Flooded_Grounds/Scripts/CameraViewSwitcher.cs
 Assets/a.last/Flooded_Grounds/Scripts/FPSController/CharController_Motor.cs
+Assets/a.last/Flooded_Grounds/Scripts/DisableRenderer.cs
 IInteractable: واجهة يستخدمها DoorController، مسارها غير معروف، اطلبه قبل استخدامه.
 أي ملف أو مسار غير موجود بهذه القائمة يجب طلبه قبل استخدامه.
 
@@ -56,6 +58,27 @@ SetupMonsterAnimatorButton.cs: موجود بالمشروع، مساره غير �
 لا تعيد إنشاء NavMeshAgentAutoPlace.cs.
 لا تستخدم أداة تضيف Modifiers إلى آلاف المجسمات.
 لا تشغّل أي Tool غير موجود بالقائمة بدون تأكيد.
+Assets/Editor/ChatBuilder.cs (namespace Palewick.EditorTools، MenuItem Palewick/Create Chat In Canvas) — محفوظ.
+Assets/Editor/GameScreensBuilder.cs (namespace Palewick.EditorTools، MenuItem Palewick/Build Horror Game Screens) — محفوظ، نسخة جديدة فيها DeathPoints/CostText/MessageText/WatchAdBtn (نظام نقاط/إعلان بشاشة الموت).
+Assets/Editor/DoorSetupTool.cs: موجود بالمشروع (MenuItem Tools/Setup All Doors)، مخالف للقواعد (بدون namespace Palewick.EditorTools). غير مذكور سابقاً بالبرومبت، محفوظ كما هو بدون تشغيل أو تعديل لحد ما يصير طلب صريح.
+أدوات Editor ظاهرة بالمشروع وغير موثقة بعد (أسماء بس من الصور، محتواها غير معروف، لا تُستخدم قبل طلبها): MapCollisionTool.cs، MarkStaticTool.cs، NavMeshBakerTool.cs، PhotonCrashPreventer.cs، PwLoginBuilder.cs، PwPluginMetaFixer.cs، PwPointsBuilder.cs، PwServicesDefines.cs، PwShopBuilder.cs، ToggleNavMeshTool.cs، HudCornerLock.cs، IntroBuilder.cs، LobbyBuilder.cs، MinimapBuilder.cs (آخر أربعة مذكورين بقسم المنجز سابقاً).
+تنبيه معلّق: GameScreensBuilder.cs الجديد يحتاج DeathScreen.cs محدث بحقول pointsText وcostText وmessageText وadButton (غير موجودة بالنسخة الحالية المحفوظة من DeathScreen.cs) — غير كذا ما راح يصير Compile. اطلب نص DeathScreen.cs الحالي/الجديد قبل أي Build.
+Assets/Editor/HorrorLightingTool.cs — محفوظ، طابق المسار المذكور أصلاً بالبرومبت.
+Assets/Editor/MapCollisionTool.cs: جديد (#if UNITY_EDITOR، بدون namespace Palewick.EditorTools، MenuItem Tools/Setup Solid Map Colliders). مخالف لقاعدة الـ Namespace، محفوظ بدون تشغيل.
+Assets/Editor/MarkStaticTool.cs: جديد (بدون namespace، MenuItem Tools/Mark Scene Static). مخالف لقاعدة الـ Namespace، محفوظ بدون تشغيل.
+LobbyBuilder.cs تحدّث: Single Player انتقل جوة ServerPanel (كان على الـ root)، وضيف استدعاء PwLoginBuilder.Build(root, lobby) — PwLoginBuilder.cs لسه غير مستلم، يعني هذا الملف ما يصير يتبنى (Compile) من غيره.
+PwLoginBuilder.cs: استلم، يحل مشكلة اعتماد LobbyBuilder.cs السابقة. لكنه نفسه يعتمد صفوف جديدة غير مستلمة بعد: PwAuthUI، PwStartMode، PwLanguageUI، PwPointsHud، PwShopBuilder (موجودة بقائمة أدوات Editor غير الموثقة). لازم تجي هذي الملفات قبل أي Compile ناجح.
+Assets/Editor/PreBakeCollisionFixer.cs — محفوظ أخيراً (كان بالقائمة بس غير مستلم سابقاً)، namespace Palewick.EditorTools، MenuItem Tools/Palewick/Fix Pre-Bake Collision.
+Assets/Editor/MinimapBuilder.cs — طابق تمام النسخة المحفوظة، ماكو تغيير.
+Assets/Editor/NavMeshBakerTool.cs: جديد، بدون namespace Palewick.EditorTools (مخالف للقاعدة)، MenuItem Tools/Palewick/Bake NavMesh Ground، يستخدم NavMeshBuilder.BuildNavMesh القديم (Obsolete). محفوظ بدون تشغيل.
+Assets/Editor/PhotonCrashPreventer.cs: جديد، بدون namespace، [InitializeOnLoad]، يفصل Photon تلقائياً عند الخروج من Play Mode. محفوظ.
+Assets/Editor/PwPluginMetaFixer.cs: جديد، namespace Palewick.EditorTools سليم، MenuItem Palewick/Fix Plugin Meta Files. محفوظ.
+Assets/Editor/PwPointsBuilder.cs: جديد، namespace سليم. MenuItem Palewick/Build Points HUD و Palewick/Create Point Pickup. يستخدم PwPointsHud (استلم) وPointPickup (غير مستلم بعد).
+Assets/Editor/PwServicesDefines.cs: جديد، namespace سليم، [InitializeOnLoad]، يضيف PW_ADMOB وPW_GPGS لـ Scripting Define Symbols حسب وجود مجلدات GoogleMobileAds/GooglePlayGames.
+Assets/Editor/PwShopBuilder.cs: جديد، namespace سليم، MenuItem Palewick/Build Shop. يعتمد PwShopUI وPwShop (غير مستلمين).
+Assets/Editor/ToggleNavMeshTool.cs: جديد، بدون namespace (مخالفة)، MenuItem Tools/Palewick/Hide|Show NavMesh. محفوظ بدون تشغيل.
+Assets/Scripts أو ما يعادلها: PwStartMode.cs، PwAuthUI.cs، PwPointsHud.cs، PwLanguageUI.cs — استلموا، محفوظين بـ Palewick/Scripts/. يحلّون جزء من اعتماديات PwLoginBuilder.cs.
+ناقص لسه للـ Compile الكامل: PwShopUI.cs، PwCloud.cs، PwPoints.cs، PwShop.cs (ثوابت الأسعار/السكنات)، PointPickup.cs، وDeathScreen.cs المحدث (فقرة أعلاه).
 
 5. البريفابات والشيدرات والموديلات
 Player Prefab: Assets/Resources/WhiteclownPlayer.prefab
