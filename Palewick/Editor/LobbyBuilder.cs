@@ -144,9 +144,6 @@ namespace Palewick.EditorTools
             RectTransform servers = Node("ServersBtn", root);
             Place(servers, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(40f, 70f), new Vector2(430f, 102f));
             PlateButton(servers.gameObject, "lobby_btn_side.png", "Servers", 50, lobby.OnStartPressed);
-            RectTransform solo = Node("SinglePlayerBtn", root);
-            Place(solo, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(40f, -60f), new Vector2(430f, 102f));
-            PlateButton(solo.gameObject, "lobby_btn_side.png", "Single Player", 50, lobby.OnSinglePlayerPressed);
             RectTransform start = Node("StartButton", root);
             Place(start, new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(0.5f, 0.5f), new Vector2(-320f, 150f), new Vector2(540f, 164f));
             PlateButton(start.gameObject, "lobby_btn_start.png", "START", 104, lobby.OnStartPressed);
@@ -172,6 +169,7 @@ namespace Palewick.EditorTools
             browser.serverPanel = serverPanel;
             browser.loadingPanel = loading;
             lobby.loadingPanel = loading;
+            PwLoginBuilder.Build(root, lobby);
             BuildAudio(lobby);
             BuildStage(lobby, viewImg);
             EditorUtility.SetDirty(lobby);
