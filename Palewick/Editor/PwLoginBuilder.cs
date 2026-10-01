@@ -64,11 +64,11 @@ namespace Palewick.EditorTools
             BuildAccountBar(root, auth);
             Transform loading = root.Find("LoadingPanel");
             if (loading != null) loading.SetAsLastSibling();
+            PwShopBuilder.Build(root, lobby);
             BuildStartMode(root, mode);
             BuildPanel(root, auth);
             BuildLanguage(root, langUI);
             BindStart(root, mode);
-            PwShopBuilder.Build(root, lobby);
             EditorUtility.SetDirty(auth);
             EditorUtility.SetDirty(mode);
             EditorUtility.SetDirty(langUI);
