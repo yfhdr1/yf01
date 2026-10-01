@@ -43,41 +43,8 @@ namespace Palewick.EditorTools
             EditorSceneManager.MarkSceneDirty(lobby.gameObject.scene);
             EditorUtility.DisplayDialog("Shop", "Shop built. Press Ctrl+S to save the scene.", "OK");
         }
-        private static void PrepareArt()
-        {
-            string[] files = { "shop_skin_white.png", "shop_skin_red.png", "shop_skin_black.png", "shop_skin_gold.png", "shop_flashlight.png" };
-            for (int i = 0; i < files.Length; i++)
-            {
-                string path = ArtFolder + "/" + files[i];
-                TextureImporter importer = AssetImporter.GetAtPath(path) as TextureImporter;
-                if (importer == null) continue;
-                bool changed = false;
-                if (importer.textureType != TextureImporterType.Sprite)
-                {
-                    importer.textureType = TextureImporterType.Sprite;
-                    changed = true;
-                }
-                if (importer.spriteImportMode != SpriteImportMode.Single)
-                {
-                    importer.spriteImportMode = SpriteImportMode.Single;
-                    changed = true;
-                }
-                if (importer.mipmapEnabled)
-                {
-                    importer.mipmapEnabled = false;
-                    changed = true;
-                }
-                if (!importer.alphaIsTransparency)
-                {
-                    importer.alphaIsTransparency = true;
-                    changed = true;
-                }
-                if (changed) importer.SaveAndReimport();
-            }
-        }
         public static void Build(Transform root, LobbyManager lobby)
         {
-            PrepareArt();
             font = AssetDatabase.LoadAssetAtPath<Font>(ArtFolder + "/Creepster.ttf");
             Kill(root, "ShopPanel");
             Kill(root, "ShopBtn");
@@ -91,7 +58,7 @@ namespace Palewick.EditorTools
             Img(shade.gameObject, null, new Color(0f, 0f, 0f, 0.88f), true);
             ui.panel = shade.gameObject;
             RectTransform box = Node("Box", shade);
-            Place(box, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(1780f, 1046f));
+            Place(box, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(1700f, 1050f));
             Image boxImg = Img(box.gameObject, Spr("lobby_panel.png"), Color.white, true);
             boxImg.type = Image.Type.Sliced;
             RectTransform title = Node("Title", box);
@@ -115,7 +82,7 @@ namespace Palewick.EditorTools
             string[] names = { "Default Skin", "Red Skin", "Black Skin", "Gold Skin", "Strong Flashlight" };
             string[] line1 = { "The normal white look", "Blood red clown body", "Dark body for the night", "Shiny gold body", "Light range 45m instead of 30m" };
             string[] line2 = { "Free for everyone", "All players see your color", "Harder to spot in the dark", "The rarest look in the game", "Wider beam and brighter" };
-            string[] art = { "shop_skin_white.png", "shop_skin_red.png", "shop_skin_black.png", "shop_skin_gold.png", "shop_flashlight.png" };
+            string[] art = { "shop_skin_white", "shop_skin_red", "shop_skin_black", "shop_skin_gold", "shop_flashlight" };
             int[] flags = { 0, PwShop.SkinRed, PwShop.SkinBlack, PwShop.SkinGold, PwShop.FlashUp };
             int[] prices = { 0, PwShop.PriceRed, PwShop.PriceBlack, PwShop.PriceGold, PwShop.PriceFlash };
             int[] skins = { 0, 1, 2, 3, -1 };
@@ -125,39 +92,41 @@ namespace Palewick.EditorTools
                 int col = i % 2;
                 int line = i / 2;
                 RectTransform row = Node("Card" + i, box);
-                Place(row, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(col == 0 ? -440f : 440f, -172f - line * 286f), new Vector2(866f, 276f));
+                Place(row, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(col == 0 ? -420f : 420f, -170f - line * 284f), new Vector2(810f, 270f));
                 PwShopUI.Card card = new PwShopUI.Card();
                 card.flag = flags[i];
                 card.price = prices[i];
                 card.skinIndex = skins[i];
                 card.button = PlateButton(row.gameObject, "lobby_btn_side.png", string.Empty, 1, null);
                 RectTransform icon = Node("Icon", row);
-                Place(icon, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(124f, 0f), new Vector2(196f, 196f));
-                Image iconImg = Img(icon.gameObject, Spr(art[i]), Color.white, false);
+                Place(icon, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(105f, 0f), new Vector2(180f, 180f));
+                Sprite iconSprite = FindSprite(art[i]);
+                if (iconSprite == null && skins[i] >= 0) iconSprite = Spr("lobby_avatar.png");
+                Image iconImg = Img(icon.gameObject, iconSprite, Color.white, false);
                 iconImg.preserveAspect = true;
                 RectTransform name = Node("Name", row);
-                Place(name, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(112f, 78f), new Vector2(-266f, 58f));
-                Label(name.gameObject, names[i], 46, TextColor, TextAnchor.MiddleLeft);
+                Place(name, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(98f, 82f), new Vector2(-235f, 56f));
+                Label(name.gameObject, names[i], 44, TextColor, TextAnchor.MiddleLeft);
                 RectTransform d1 = Node("Desc1", row);
-                Place(d1, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(112f, 22f), new Vector2(-266f, 44f));
+                Place(d1, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(98f, 24f), new Vector2(-235f, 42f));
                 Label(d1.gameObject, line1[i], 30, HintColor, TextAnchor.MiddleLeft);
                 RectTransform d2 = Node("Desc2", row);
-                Place(d2, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(112f, -22f), new Vector2(-266f, 44f));
+                Place(d2, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(98f, -20f), new Vector2(-235f, 42f));
                 Label(d2.gameObject, line2[i], 30, HintColor, TextAnchor.MiddleLeft);
                 RectTransform coin = Node("Coin", row);
-                Place(coin, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(252f, -92f), new Vector2(40f, 40f));
+                Place(coin, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(236f, -88f), new Vector2(36f, 36f));
                 Img(coin.gameObject, Spr("lobby_ember.png"), new Color(1f, 0.76f, 0.3f, 1f), false);
                 RectTransform price = Node("PriceValue", row);
-                Place(price, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(280f, -92f), new Vector2(160f, 54f));
-                card.priceText = Label(price.gameObject, prices[i].ToString(), 40, TextColor, TextAnchor.MiddleLeft);
+                Place(price, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(262f, -88f), new Vector2(160f, 52f));
+                card.priceText = Label(price.gameObject, prices[i].ToString(), 38, TextColor, TextAnchor.MiddleLeft);
                 RectTransform state = Node("State", row);
-                Place(state, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-30f, -92f), new Vector2(340f, 58f));
-                card.stateText = Label(state.gameObject, "Buy", 42, new Color(1f, 0.85f, 0.45f, 1f), TextAnchor.MiddleRight);
+                Place(state, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-32f, -88f), new Vector2(320f, 56f));
+                card.stateText = Label(state.gameObject, "Buy", 40, new Color(1f, 0.85f, 0.45f, 1f), TextAnchor.MiddleRight);
                 cards.Add(card);
             }
             ui.cards = cards.ToArray();
             RectTransform msg = Node("ShopMessage", box);
-            Place(msg, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 14f), new Vector2(1600f, 50f));
+            Place(msg, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 26f), new Vector2(1400f, 56f));
             ui.messageText = Label(msg.gameObject, "Not enough points", 38, new Color(1f, 0.5f, 0.35f, 1f), TextAnchor.MiddleCenter);
             msg.gameObject.SetActive(false);
             shade.gameObject.SetActive(false);
