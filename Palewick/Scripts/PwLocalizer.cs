@@ -176,7 +176,18 @@ public class PwLocalizer : MonoBehaviour
         { "red skin", new[] { "شكل أحمر", "ڕووکاری سوور" } },
         { "black skin", new[] { "شكل أسود", "ڕووکاری ڕەش" } },
         { "gold skin", new[] { "شكل ذهبي", "ڕووکاری زێڕین" } },
-        { "strong flashlight", new[] { "فانوس أقوى", "چرای بەهێزتر" } }
+        { "strong flashlight", new[] { "فانوس أقوى", "چرای بەهێزتر" } },
+        { "points come from map items and ads", new[] { "النقاط تجمعها من أغراض الخريطة ومن الإعلانات", "خاڵەکان لە شتەکانی نەخشە و ڕیکلامەوە کۆدەکەیتەوە" } },
+        { "the normal white look", new[] { "الشكل الأبيض الطبيعي", "ڕووکاری سپی ئاسایی" } },
+        { "free for everyone", new[] { "مجاني للجميع", "بەخۆڕایی بۆ هەمووان" } },
+        { "blood red clown body", new[] { "جسم مهرج أحمر دموي", "لەشی سوورە خوێنین" } },
+        { "all players see your color", new[] { "كل اللاعبين يشوفون لونك", "هەموو یاریزانان ڕەنگەکەت دەبینن" } },
+        { "dark body for the night", new[] { "جسم أسود مناسب لليل", "لەشی ڕەش بۆ شەو" } },
+        { "harder to spot in the dark", new[] { "أصعب ما ينشاف بالظلام", "بە تاریکی زەحمەتترە ببینرێت" } },
+        { "shiny gold body", new[] { "جسم ذهبي لامع", "لەشی زێڕینی بریقەدار" } },
+        { "the rarest look in the game", new[] { "أندر شكل باللعبة", "دەگمەنترین ڕووکار لە یارییەکە" } },
+        { "light range 45m instead of 30m", new[] { "مدى الضوء 45م بدل 30م", "مەودای ڕووناکی ٤٥م لە جیاتی ٣٠م" } },
+        { "wider beam and brighter", new[] { "شعاع أوسع وأقوى", "تیشکی فراوانتر و ڕووناکتر" } }
     };
     private readonly List<Entry> entries = new List<Entry>();
     private readonly Dictionary<Object, Entry> lookup = new Dictionary<Object, Entry>();
